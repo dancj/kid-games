@@ -46,10 +46,10 @@ const TOPPINGS = [
   { id: 'rainbow', name: 'Rainbow Sprinkles', svgIcon: sprinkleJar(['#e84a6f', '#ffd447', '#4fc3f7', '#8fd97f', '#c9a6f5', '#ff8a65']) },
   { id: 'chocsprk', name: 'Choco Sprinkles', svgIcon: sprinkleJar(['#5c4033', '#7b4a2d', '#4a3428', '#5c4033', '#7b4a2d', '#4a3428']) },
   { id: 'candy', name: 'Candy Gems', icon: '🍬' },
-  { id: 'cherry', name: 'Cherry', icon: '🍒' },
+  { id: 'cherry', name: 'Cherries', icon: '🍒' },
   { id: 'whip', name: 'Whipped Cream', svgIcon: whipIcon },
-  { id: 'cookie', name: 'Cookie', icon: '🍪' },
-  { id: 'bear', name: 'Gummy Bear', icon: '🐻' },
+  { id: 'cookie', name: 'Cookies', icon: '🍪' },
+  { id: 'bear', name: 'Gummy Bears', icon: '🐻' },
 ];
 
 const COMPLIMENTS = ['Yummy!', 'So tasty! 😋', 'Sweet masterpiece! 🍭', 'Brain freeze incoming! 🥶', 'Chef\'s kiss! 😘', 'The best in town! 🏆'];
@@ -58,11 +58,17 @@ const COMPLIMENTS = ['Yummy!', 'So tasty! 😋', 'Sweet masterpiece! 🍭', 'Bra
 
 const build = {
   cone: CONES[0],
-  scoops: [],        // up to 3 flavor objects, bottom first
+  scoops: [],        // up to 3 of {f: flavor, tops: Set of topping ids}, bottom first
+  sel: -1,           // which scoop toppings go on (tap a scoop to change)
   soft: null,        // soft-serve flavor replaces scoops
+  softTops: new Set(),
   mixins: new Set(),
-  toppings: new Set(),
 };
+
+function targetTops() {
+  if (build.soft) return build.softTops;
+  return build.scoops[build.sel] ? build.scoops[build.sel].tops : null;
+}
 
 /* ============================== CREATION SVG ============================== */
 
@@ -150,18 +156,22 @@ function swirlBaseY() {
 
 function swirlSvg(f) {
   const baseY = swirlBaseY();
+  // offset + tilted layers spiral upwards
   const layers = [
-    { cy: baseY - 12, rx: 47, ry: 20 },
-    { cy: baseY - 38, rx: 37, ry: 17 },
-    { cy: baseY - 60, rx: 27, ry: 14 },
+    { cy: baseY - 10, rx: 48, ry: 19, dx: 0, rot: -4 },
+    { cy: baseY - 36, rx: 41, ry: 17, dx: 6, rot: 6 },
+    { cy: baseY - 60, rx: 34, ry: 15, dx: -6, rot: -7 },
+    { cy: baseY - 82, rx: 27, ry: 13, dx: 5, rot: 7 },
+    { cy: baseY - 101, rx: 20, ry: 11, dx: -4, rot: -8 },
   ];
-  let out = layers.map((l, i) => `<ellipse cx="150" cy="${l.cy}" rx="${l.rx}" ry="${l.ry}" fill="${f.c2 && i % 2 ? f.c2 : f.c}"/>`).join('');
-  out += `<path d="M138 ${baseY - 66} Q148 ${baseY - 100} 156 ${baseY - 72} Q160 ${baseY - 84} 162 ${baseY - 66} Z" fill="${f.c2 || f.c}"/>`;
+  let out = layers.map((l, i) =>
+    `<ellipse cx="${150 + l.dx}" cy="${l.cy}" rx="${l.rx}" ry="${l.ry}" fill="${f.c2 && i % 2 ? f.c2 : f.c}" transform="rotate(${l.rot} ${150 + l.dx} ${l.cy})"/>`).join('');
+  out += `<path d="M140 ${baseY - 108} Q146 ${baseY - 142} 158 ${baseY - 114} Q164 ${baseY - 126} 164 ${baseY - 106} Z" fill="${f.c2 || f.c}"/>`;
   // a few mixin bits pressed into the swirl
   let m = 0;
   build.mixins.forEach(id => {
     m++;
-    spots(77 + m * 31, 4, 30).forEach(([dx, dy, s]) => { out += bitSvg(MIXIN_KIND[id], 150 + dx, baseY - 38 + dy * 0.6, s); });
+    spots(77 + m * 31, 5, 32).forEach(([dx, dy, s]) => { out += bitSvg(MIXIN_KIND[id], 150 + dx, baseY - 50 + dy * 0.9, s); });
   });
   return out;
 }
@@ -196,32 +206,29 @@ function coneSvg() {
   }
 }
 
-function toppingsSvg(top) {
-  // top = {cx, cy, r} of the highest scoop / swirl tip area
+function toppingsSvg(top, tops, seed) {
+  // top = {cx, cy, r} of one scoop (or the swirl body); tops = that scoop's topping ids
   let out = '';
-  const centers = build.soft ? [top] : scoopCenters();
-  if (build.toppings.has('rainbow') || build.toppings.has('chocsprk')) {
-    const cols = build.toppings.has('rainbow') ? ['#e84a6f', '#ffd447', '#4fc3f7', '#8fd97f', '#c9a6f5', '#ff8a65'] : ['#5c4033', '#4a3428', '#3d2c22'];
-    centers.forEach((c, ci) => {
-      spots(11 + ci * 17, 9, c.r * 0.7).forEach(([dx, dy, s], i) => {
-        if (dy > 0) dy = -dy; // upper half only
-        out += `<rect x="${c.cx + dx - 4}" y="${c.cy + dy - 1.4}" width="8" height="2.8" rx="1.4" fill="${cols[i % cols.length]}" transform="rotate(${s % 120 - 60} ${c.cx + dx} ${c.cy + dy})"/>`;
-      });
+  if (tops.has('rainbow') || tops.has('chocsprk')) {
+    const cols = tops.has('rainbow') ? ['#e84a6f', '#ffd447', '#4fc3f7', '#8fd97f', '#c9a6f5', '#ff8a65'] : ['#5c4033', '#4a3428', '#3d2c22'];
+    spots(11 + seed * 17, 9, top.r * 0.7).forEach(([dx, dy, s], i) => {
+      if (dy > 0) dy = -dy; // upper half only
+      out += `<rect x="${top.cx + dx - 4}" y="${top.cy + dy - 1.4}" width="8" height="2.8" rx="1.4" fill="${cols[i % cols.length]}" transform="rotate(${s % 120 - 60} ${top.cx + dx} ${top.cy + dy})"/>`;
     });
   }
-  if (build.toppings.has('candy')) {
+  if (tops.has('candy')) {
     const cols = ['#e84a6f', '#4fc3f7', '#ffd447', '#8fd97f', '#c9a6f5'];
-    spots(29, 6, top.r * 0.65).forEach(([dx, dy, s], i) => {
+    spots(29 + seed * 13, 6, top.r * 0.65).forEach(([dx, dy, s], i) => {
       if (dy > 0) dy = -dy;
       out += `<circle cx="${top.cx + dx}" cy="${top.cy + dy}" r="4.5" fill="${cols[i % cols.length]}"/><circle cx="${top.cx + dx - 1.2}" cy="${top.cy + dy - 1.2}" r="1.2" fill="#fff" opacity="0.8"/>`;
     });
   }
-  if (build.toppings.has('cookie')) {
-    const x = top.cx + top.r * 0.55, y = top.cy - top.r * 0.55;
-    out += `<circle cx="${x}" cy="${y}" r="14" fill="#c9925c"/>` +
-      [[-5, -3], [4, -6], [1, 4], [-6, 5], [7, 2]].map(([a, b]) => `<circle cx="${x + a}" cy="${y + b}" r="2" fill="#4a3428"/>`).join('');
+  if (tops.has('cookie')) {
+    const cookie = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#c9925c"/>` +
+      [[-5, -3], [4, -6], [1, 4], [-6, 5], [7, 2]].map(([a, b]) => `<circle cx="${x + a * r / 14}" cy="${y + b * r / 14}" r="${2 * r / 14}" fill="#4a3428"/>`).join('');
+    out += cookie(top.cx + top.r * 0.55, top.cy - top.r * 0.55, 14) + cookie(top.cx - top.r * 0.6, top.cy - top.r * 0.4, 10);
   }
-  if (build.toppings.has('bear')) {
+  if (tops.has('bear')) {
     const bears = [
       ['#8fd97f', top.cx - top.r * 0.55, top.cy - top.r * 0.6],
       ['#e84a6f', top.cx + top.r * 0.5, top.cy - top.r * 0.45],
@@ -232,33 +239,39 @@ function toppingsSvg(top) {
     });
   }
   let peakY = top.cy - top.r;
-  if (build.toppings.has('whip')) {
+  if (tops.has('whip')) {
     const y = peakY - 2;
     out += `<circle cx="${top.cx - 14}" cy="${y}" r="13" fill="#fff"/><circle cx="${top.cx + 14}" cy="${y}" r="13" fill="#fff"/><circle cx="${top.cx}" cy="${y - 10}" r="14" fill="#fff"/>`;
     peakY = y - 24;
   }
-  if (build.toppings.has('cherry')) {
-    out += `<circle cx="${top.cx}" cy="${peakY - 6}" r="8" fill="#d92645"/><circle cx="${top.cx - 2.5}" cy="${peakY - 8.5}" r="2.2" fill="#fff" opacity="0.7"/>
-      <path d="M${top.cx} ${peakY - 13} Q${top.cx + 6} ${peakY - 24} ${top.cx + 12} ${peakY - 26}" fill="none" stroke="#5c8a3a" stroke-width="2.5" stroke-linecap="round"/>`;
+  if (tops.has('cherry')) {
+    const cherry = (x, y) => `<circle cx="${x}" cy="${y}" r="7" fill="#d92645"/><circle cx="${x - 2.2}" cy="${y - 2.2}" r="2" fill="#fff" opacity="0.7"/>`;
+    out += cherry(top.cx - 7, peakY - 4) + cherry(top.cx + 8, peakY - 2) +
+      `<path d="M${top.cx - 7} ${peakY - 10} Q${top.cx} ${peakY - 26} ${top.cx + 4} ${peakY - 28} M${top.cx + 8} ${peakY - 8} Q${top.cx + 5} ${peakY - 22} ${top.cx + 4} ${peakY - 28}" fill="none" stroke="#5c8a3a" stroke-width="2.5" stroke-linecap="round"/>`;
   }
   return out;
 }
 
-function drawCreation() {
+function drawCreation(interactive) {
   let iceCream = '';
-  let top = null;
+  let ring = '';
   if (build.soft) {
-    iceCream = swirlSvg(build.soft);
-    top = { cx: 150, cy: swirlBaseY() - 48, r: 34 };
+    const baseY = swirlBaseY();
+    const body = { cx: 150, cy: baseY - 60, r: 44 };
+    iceCream = `<g data-scoop="0">${swirlSvg(build.soft)}${toppingsSvg({ cx: 150, cy: baseY - 78, r: 36 }, build.softTops, 0)}</g>`;
   } else if (build.scoops.length) {
     const centers = scoopCenters();
-    iceCream = build.scoops.map((f, i) => scoopSvg(f, centers[i].cx, centers[i].cy, centers[i].r, 7 + i * 13)).join('');
-    top = centers.reduce((a, b) => (b.cy < a.cy ? b : a)); // highest scoop (middle one on a split)
+    iceCream = build.scoops.map((s, i) =>
+      `<g data-scoop="${i}">${scoopSvg(s.f, centers[i].cx, centers[i].cy, centers[i].r, 7 + i * 13)}${toppingsSvg(centers[i], s.tops, i)}</g>`).join('');
+    const c = centers[build.sel];
+    if (interactive && build.scoops.length > 1 && c) {
+      ring = `<circle cx="${c.cx}" cy="${c.cy}" r="${c.r + 6}" fill="none" stroke="#e84a6f" stroke-width="3.5" stroke-dasharray="10 8" opacity="0.9"/>`;
+    }
   }
   return `<svg viewBox="0 0 300 470" xmlns="http://www.w3.org/2000/svg">
     ${iceCream}
     ${coneSvg()}
-    ${top ? toppingsSvg(top) : ''}
+    ${ring}
   </svg>`;
 }
 
@@ -267,9 +280,12 @@ function drawCreation() {
 const $ = (id) => document.getElementById(id);
 
 function render() {
-  $('creation').innerHTML = drawCreation();
-  const n = build.soft ? 'Soft serve swirl!' : `Scoops: ${build.scoops.length} / 3`;
-  $('scoopCount').textContent = build.scoops.length || build.soft ? n : 'Pick a cone, then scoop!';
+  $('creation').innerHTML = drawCreation(true);
+  let msg = 'Pick a cone, then scoop!';
+  if (build.soft) msg = 'Soft serve swirl!';
+  else if (build.scoops.length > 1) msg = `Scoops: ${build.scoops.length} / 3 — tap a scoop to top it!`;
+  else if (build.scoops.length) msg = 'Scoops: 1 / 3';
+  $('scoopCount').textContent = msg;
   buildShelves();
 }
 
@@ -315,8 +331,9 @@ function buildShelves() {
     `<button class="lever ${build.soft && build.soft.id === f.id ? 'sel' : ''}" data-act="soft" data-id="${f.id}">${leverSvg(f)}<span class="item-name">${f.name}</span></button>`).join('');
   $('mixins').innerHTML = MIXINS.map(m =>
     `<button class="shelf-item ${build.mixins.has(m.id) ? 'sel' : ''}" data-act="mixin" data-id="${m.id}"><span class="big-emoji">${m.icon}</span><span class="item-name">${m.name}</span></button>`).join('');
+  const tops = targetTops();
   $('toppings').innerHTML = TOPPINGS.map(t =>
-    `<button class="shelf-item ${build.toppings.has(t.id) ? 'sel' : ''}" data-act="topping" data-id="${t.id}">${t.svgIcon || `<span class="big-emoji">${t.icon}</span>`}<span class="item-name">${t.name}</span></button>`).join('');
+    `<button class="shelf-item ${tops && tops.has(t.id) ? 'sel' : ''}" data-act="topping" data-id="${t.id}">${t.svgIcon || `<span class="big-emoji">${t.icon}</span>`}<span class="item-name">${t.name}</span></button>`).join('');
 
   document.querySelectorAll('[data-act]').forEach(b => { b.onclick = () => act(b.dataset.act, b.dataset.id); });
 }
@@ -326,16 +343,20 @@ function act(action, id) {
   else if (action === 'scoop') {
     build.soft = null;
     if (build.scoops.length >= 3) return wobble('Whoa, 3 scoops max! 🍨');
-    build.scoops.push(FLAVORS.find(f => f.id === id));
+    build.scoops.push({ f: FLAVORS.find(f => f.id === id), tops: new Set() });
+    build.sel = build.scoops.length - 1; // new scoop becomes the topping target
     sparkle();
   } else if (action === 'soft') {
     build.scoops = [];
+    build.sel = -1;
     build.soft = SOFT.find(f => f.id === id);
     sparkle();
   } else if (action === 'mixin') {
     build.mixins.has(id) ? build.mixins.delete(id) : build.mixins.add(id);
   } else if (action === 'topping') {
-    build.toppings.has(id) ? build.toppings.delete(id) : build.toppings.add(id);
+    const tops = targetTops();
+    if (!tops) return wobble('Scoop some ice cream first! 🍦');
+    tops.has(id) ? tops.delete(id) : tops.add(id);
   }
   render();
 }
@@ -377,9 +398,10 @@ function savePicture() {
 function reset() {
   build.cone = CONES[0];
   build.scoops = [];
+  build.sel = -1;
   build.soft = null;
+  build.softTops.clear();
   build.mixins.clear();
-  build.toppings.clear();
   render();
 }
 
@@ -391,10 +413,18 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 $('btnUndo').onclick = () => {
-  if (build.soft) build.soft = null;
-  else build.scoops.pop();
+  if (build.soft) { build.soft = null; build.softTops.clear(); }
+  else { build.scoops.pop(); build.sel = build.scoops.length - 1; }
   render();
 };
+
+// tap a scoop (or the swirl) to make it the topping target
+$('creation').addEventListener('pointerdown', (e) => {
+  const g = e.target.closest && e.target.closest('[data-scoop]');
+  if (!g) return;
+  build.sel = +g.dataset.scoop;
+  render();
+});
 $('btnClear').onclick = reset;
 $('btnServe').onclick = serve;
 $('btnSave').onclick = savePicture;
