@@ -131,6 +131,7 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
 .serve-card h2 { font-size: 2.2rem; color: var(--cherry); margin-bottom: 8px; }
 #servedCreation svg { height: min(48vh, 380px); margin: 0 auto; }
 .receipt { font-size: 1.15rem; margin: 12px 0 18px; }
+.serve-btns { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; }
 @keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* portrait: stations stack around the counter */

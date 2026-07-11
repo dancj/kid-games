@@ -48,6 +48,7 @@ const NAILS = [
 ];
 
 const LIPS = [
+  { id: 'l0', name: 'None', c: 'none', tags: [] },
   { id: 'l1', name: 'Bubblegum', c: '#ff6fb5', tags: ['pink', 'cute'] },
   { id: 'l2', name: 'Ruby', c: '#d92645', tags: ['bold', 'fancy'] },
   { id: 'l3', name: 'Coral', c: '#ff8a65', tags: ['sunny'] },
@@ -59,6 +60,7 @@ const LIPS = [
 ];
 
 const SHADOW = [
+  { id: 's0', name: 'None', c: 'none', tags: [] },
   { id: 's1', name: 'Peach', c: '#ffbfa0', tags: ['sunny'] },
   { id: 's2', name: 'Lilac', c: '#c9a6f5', tags: ['fancy'] },
   { id: 's3', name: 'Seafoam', c: '#9fe8d0', tags: ['green', 'blue'] },
@@ -252,14 +254,14 @@ function handSvg(skin, nail, h, flip) {
   const nc = nail || shade(skin, 30);
   const edge = shade(skin, -28);
   let fingers = '';
-  [[-11, 13], [-3.5, 16], [3.5, 15], [11, 12]].forEach(([fx, len]) => {
+  [[-10, 13], [-3.5, 16], [3.5, 15], [10, 12]].forEach(([fx, len]) => {
     fingers += `<rect x="${fx - 3.4}" y="7" width="6.8" height="${len}" rx="3.4" fill="${skin}"/>` +
       `<ellipse cx="${fx}" cy="${5 + len}" rx="2.6" ry="3.2" fill="${nc}" stroke="${edge}" stroke-width="0.6"/>`;
   });
   const thumb = `<rect x="-20" y="3" width="6.5" height="12" rx="3.2" fill="${skin}" transform="rotate(28 -16.5 5)"/>` +
     `<ellipse cx="-16.5" cy="15" rx="2.4" ry="2.9" fill="${nc}" stroke="${edge}" stroke-width="0.6" transform="rotate(28 -16.5 5)"/>`;
   return `<g transform="translate(${h.x},${h.y}) rotate(${h.r}) ${flip ? 'scale(-1,1)' : ''}">
-    <ellipse cx="0" cy="5" rx="13" ry="10" fill="${skin}"/>${fingers}${thumb}</g>`;
+    <ellipse cx="0" cy="6" rx="14.5" ry="11" fill="${skin}"/>${fingers}${thumb}</g>`;
 }
 
 function hairPaths(styleId, color) {
@@ -383,10 +385,11 @@ function drawDoll(look, skin, pose = 'rest') {
   const hair = hairPaths(look.hairStyle.id, look.hairColor.c);
   const nailC = look.nails ? look.nails.c : null;
 
-  const shadowMk = look.shadow ? `<path d="M130 106 Q140 98 150 106 Q140 102 130 106 Z" fill="${look.shadow.c}"/><path d="M170 106 Q180 98 190 106 Q180 102 170 106 Z" fill="${look.shadow.c}"/>
+  const shadowOn = look.shadow && look.shadow.c !== 'none';
+  const shadowMk = shadowOn ? `<path d="M130 106 Q140 98 150 106 Q140 102 130 106 Z" fill="${look.shadow.c}"/><path d="M170 106 Q180 98 190 106 Q180 102 170 106 Z" fill="${look.shadow.c}"/>
     <ellipse cx="140" cy="103" rx="10" ry="5" fill="${look.shadow.c}" opacity="0.7"/><ellipse cx="180" cy="103" rx="10" ry="5" fill="${look.shadow.c}" opacity="0.7"/>` : '';
   const blush = (look.blush && look.blush.c !== 'none') ? `<ellipse cx="126" cy="140" rx="9" ry="6" fill="${look.blush.c}" opacity="0.5"/><ellipse cx="194" cy="140" rx="9" ry="6" fill="${look.blush.c}" opacity="0.5"/>` : '';
-  const lips = look.lips
+  const lips = (look.lips && look.lips.c !== 'none')
     ? `<path d="M146 152 Q153 146 160 152 Q167 146 174 152 Q167 164 160 162 Q153 164 146 152 Z" fill="${look.lips.c}"/>
        <path d="M150 152 Q160 156 170 152" fill="none" stroke="${shade(look.lips.c, -40)}" stroke-width="1" opacity="0.6"/>`
     : `<path d="M148 154 Q160 164 172 154" fill="none" stroke="#c96f6f" stroke-width="3" stroke-linecap="round"/>`;
@@ -416,7 +419,7 @@ function drawDoll(look, skin, pose = 'rest') {
     <!-- base clothes: always dressed -->
     <path d="M126 194 Q160 184 194 194 L198 264 Q160 274 122 264 Z" fill="#ffffff"/>
     <path d="M126 194 Q160 184 194 194 L193 202 Q160 192 127 202 Z" fill="#f0eaf5"/>
-    <path d="M122 258 L198 258 L203 306 L172 306 L160 284 L148 306 L117 306 Z" fill="#cfd8ea"/>
+    <path d="M122 258 L198 258 L205 344 L169 344 L160 312 L151 344 L115 344 Z" fill="#cfd8ea"/>
     <g>${dressSvg(look.dress)}</g>
     <!-- hands with fingers -->
     ${handSvg(skin, nailC, p.handL, false)}
@@ -486,11 +489,12 @@ function buildTabs() {
 }
 
 function swatchRow(title, items, lookKey) {
-  const btns = items.filter(isUnlocked).map(it => {
+  const btns = items.map(it => {
+    const locked = !isUnlocked(it);
     const sel = state.look[lookKey] && state.look[lookKey].id === it.id;
     const bg = it.c === 'none' ? 'background:#fff' : `background:${it.c}`;
-    const cross = it.c === 'none' ? '🚫' : '';
-    return `<button class="swatch ${sel ? 'sel' : ''} ${it.glitter ? 'glitter' : ''}" style="${bg}" data-key="${lookKey}" data-id="${it.id}" aria-label="${it.name}">${cross}</button>`;
+    const label = locked ? '🔒' : (it.c === 'none' ? '🚫' : '');
+    return `<button class="swatch ${sel ? 'sel' : ''} ${it.glitter ? 'glitter' : ''} ${locked ? 'locked' : ''}" style="${bg}" data-key="${lookKey}" data-id="${it.id}" aria-label="${it.name}${locked ? ' (locked)' : ''}">${label}</button>`;
   }).join('');
   return `<div class="opt-group"><h3>${title}</h3><div class="opt-row">${btns}</div></div>`;
 }
@@ -507,12 +511,14 @@ function itemThumb(it, lookKey) {
   } else if (lookKey === 'acc') {
     inner = it.kind === 'none' ? `<span class="item-emoji">🚫</span>` : `<svg viewBox="80 10 160 200">${accSvg(it)}</svg>`;
   }
+  const locked = !isUnlocked(it);
   const sel = state.look[lookKey] && state.look[lookKey].id === it.id;
-  return `<button class="item-btn ${sel ? 'sel' : ''}" data-key="${lookKey}" data-id="${it.id}">${inner}<span class="item-name">${it.name}</span></button>`;
+  return `<button class="item-btn ${sel ? 'sel' : ''} ${locked ? 'locked' : ''}" data-key="${lookKey}" data-id="${it.id}">
+    ${inner}${locked ? '<span class="lock-badge">🔒</span>' : ''}<span class="item-name">${it.name}</span></button>`;
 }
 
 function itemRow(title, items, lookKey) {
-  const btns = items.filter(isUnlocked).map(it => itemThumb(it, lookKey)).join('');
+  const btns = items.map(it => itemThumb(it, lookKey)).join('');
   return `<div class="opt-group"><h3>${title}</h3><div class="opt-row">${btns}</div></div>`;
 }
 
@@ -528,6 +534,10 @@ function buildTabContent() {
 
   c.querySelectorAll('[data-key]').forEach(b => {
     b.onclick = () => {
+      if (b.classList.contains('locked')) {
+        b.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }], { duration: 250 });
+        return;
+      }
       const { key, id } = b.dataset;
       state.look[key] = CATALOG[key].find(i => i.id === id);
       renderDoll();
@@ -622,6 +632,7 @@ function goToStage() {
   $('playerStars').innerHTML = '';
   $('scoreboard').classList.add('hidden');
   $('btnNext').classList.add('hidden');
+  $('btnPhoto').classList.add('hidden');
   buildPoseBar();
   $('poseBar').classList.remove('hidden');
 }
@@ -676,6 +687,7 @@ function showScoreboard(playerStars) {
     $('scoreboard').classList.remove('hidden');
     $('btnNext').textContent = state.round + 1 >= THEMES.length ? 'See Results 🏆' : 'Next Round ➜';
     $('btnNext').classList.remove('hidden');
+    $('btnPhoto').classList.remove('hidden');
     $('btnNext').scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, 600);
 }
@@ -708,6 +720,40 @@ function showFinal() {
   $('finalBoard').innerHTML = rows.map((r, i) =>
     `<div class="score-row"><span class="s-face">${r.face}</span><span class="s-name">${r.name}${i === 0 ? ' 👑' : ''}</span>
       <span class="s-stars">★ ${Math.round(r.stars * 10) / 10}</span></div>`).join('');
+}
+
+function savePhoto() {
+  const svg = drawDoll(state.look, state.skin, state.pose).replace('<svg ', '<svg width="640" height="1020" ');
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = 640; cv.height = 1110;
+    const ctx = cv.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 1110);
+    grad.addColorStop(0, '#ffd9ec');
+    grad.addColorStop(1, '#d9c8ff');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 640, 1110);
+    ctx.drawImage(img, 0, 20);
+    ctx.fillStyle = '#e84a97';
+    ctx.font = 'bold 40px Fredoka, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💖 Fashion for Life', 320, 1070);
+    const theme = THEMES[state.round];
+    if (theme) {
+      ctx.fillStyle = '#4a2b5f';
+      ctx.font = '600 28px Fredoka, sans-serif';
+      ctx.fillText(`${theme.emoji} ${theme.name}`, 320, 1030);
+    }
+    cv.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'my-fashion-look.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+  };
+  img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
 }
 
 /* ============================== ROUND FLOW ============================== */
@@ -751,11 +797,18 @@ function buildSkinRow() {
     b.onclick = () => { state.skin = b.dataset.skin; buildSkinRow(); });
 }
 
+// mid-round guard: browser shows a "leave page?" confirm on back/close/navigation
+window.addEventListener('beforeunload', (e) => {
+  if ($('screen-salon').classList.contains('active')) { e.preventDefault(); e.returnValue = ''; }
+});
+
 buildSkinRow();
 setupWalk();
 $('btnPlay').onclick = newGame;
 $('btnDone').onclick = goToStage;
 $('btnReady').onclick = startJudging;
 $('btnNext').onclick = nextStep;
+$('btnPhoto').onclick = savePhoto;
+$('btnPhotoFinal').onclick = savePhoto;
 $('btnUnlockOk').onclick = () => { $('overlay-unlock').classList.add('hidden'); startRound(); };
 $('btnAgain').onclick = () => { show('screen-title'); };

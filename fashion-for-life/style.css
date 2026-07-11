@@ -175,6 +175,12 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
   display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
 .item-btn.sel { border-color: var(--pink-deep); background: #fff0f8; }
+.swatch.locked, .item-btn.locked { filter: grayscale(.9); opacity: .45; position: relative; }
+.swatch.locked { font-size: 1.2rem; }
+.lock-badge {
+  position: absolute; top: 4px; right: 4px; font-size: 1rem;
+  filter: none;
+}
 .item-btn svg { width: 56px; height: 56px; }
 .item-btn .item-emoji { font-size: 2rem; line-height: 56px; }
 .item-btn .item-name { font-size: .72rem; font-weight: 600; text-align: center; }
@@ -240,6 +246,10 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
 .judge .j-stars { font-size: 1.1rem; color: var(--sun); min-height: 1.4em; }
 .player-stars { font-size: 2.6rem; color: var(--sun); min-height: 1.2em; letter-spacing: .05em; text-shadow: 0 0 14px rgba(255, 212, 71, .7); }
 .star-pop { display: inline-block; animation: pop .35s cubic-bezier(.2, 1.6, .4, 1); }
+
+.stage-btns { display: flex; gap: 14px; align-items: center; margin-bottom: 24px; }
+.stage-btns .big-btn { margin-bottom: 0; }
+.final-card .done-btn { margin-right: 10px; }
 
 .scoreboard {
   background: rgba(255, 255, 255, .12); border-radius: 20px;

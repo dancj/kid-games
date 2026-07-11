@@ -18,6 +18,7 @@ const fakeEl = () => new Proxy({}, {
   set(t, k, v) { t[k] = v; return true; },
 });
 
+global.window = { addEventListener() {} };
 global.document = {
   getElementById: fakeEl,
   querySelector: fakeEl,

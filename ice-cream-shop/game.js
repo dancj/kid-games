@@ -7,7 +7,9 @@ const CONES = [
   { id: 'sugar', name: 'Sugar Cone' },
   { id: 'waffle', name: 'Waffle Cone' },
   { id: 'cake', name: 'Cake Cone' },
+  { id: 'chocdip', name: 'Choco Dip Cone' },
   { id: 'cup', name: 'Cup' },
+  { id: 'split', name: 'Banana Split' },
 ];
 
 // Hard-packed tubs in the freezer
@@ -31,7 +33,6 @@ const SOFT = [
 ];
 
 const MIXINS = [
-  { id: 'banana', name: 'Banana', icon: '🍌' },
   { id: 'chips', name: 'Choco Chips', icon: '🍫' },
   { id: 'cookiebits', name: 'Cookie Bits', icon: '🍪' },
   { id: 'gummies', name: 'Gummies', icon: '🐻' },
@@ -68,6 +69,11 @@ const build = {
 const SCOOP_R = [46, 42, 38];
 
 function scoopCenters() {
+  if (build.cone.id === 'split') {
+    // scoops sit in a row in the boat
+    const rows = [[[150, 296, 44]], [[112, 298, 42], [188, 298, 42]], [[86, 302, 38], [150, 292, 42], [214, 302, 38]]];
+    return (rows[build.scoops.length - 1] || []).map(([cx, cy, r]) => ({ cx, cy, r }));
+  }
   const baseY = build.cone.id === 'cup' ? 280 : 262;
   let y = baseY;
   return build.scoops.map((f, i) => {
@@ -93,27 +99,34 @@ function spots(seed, n, rMax) {
 }
 
 function bitSvg(kind, x, y, s) {
+  const sc = 0.7 + (s % 100) / 100 * 0.7;             // size varies
+  const op = 0.65 + (s % 53) / 53 * 0.35;             // some bits sit deeper in the ice cream
   switch (kind) {
-    case 'chip': return `<circle cx="${x}" cy="${y}" r="3" fill="#4a3428"/>`;
-    case 'chunk': return `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" rx="2" fill="#3d2c22" transform="rotate(${s % 90} ${x} ${y})"/>`;
-    case 'banana': return `<path d="M${x - 6} ${y} Q${x} ${y - 7} ${x + 6} ${y} Q${x} ${y - 2} ${x - 6} ${y} Z" fill="#ffe28a" stroke="#e8c15a" stroke-width="1"/>`;
-    case 'gummy': { const cols = ['#e84a6f', '#8fd97f', '#ffd447', '#ff8a65']; return `<circle cx="${x}" cy="${y}" r="3.5" fill="${cols[s % 4]}"/>`; }
-    case 'mallow': return `<rect x="${x - 4}" y="${y - 3.5}" width="8" height="7" rx="3" fill="#fff" stroke="#eee1d4" stroke-width="1"/>`;
+    case 'chip': return `<circle cx="${x}" cy="${y}" r="${3 * sc}" fill="#4a3428" opacity="${op}"/>`;
+    case 'chunk': return `<rect x="${x - 4 * sc}" y="${y - 4 * sc}" width="${8 * sc}" height="${8 * sc}" rx="2" fill="#3d2c22" opacity="${op}" transform="rotate(${s % 90} ${x} ${y})"/>`;
+    case 'gummy': { const cols = ['#e84a6f', '#8fd97f', '#ffd447', '#ff8a65']; return `<circle cx="${x}" cy="${y}" r="${3.5 * sc}" fill="${cols[s % 4]}" opacity="${op}"/>`; }
+    case 'mallow': return `<rect x="${x - 4 * sc}" y="${y - 3.5 * sc}" width="${8 * sc}" height="${7 * sc}" rx="3" fill="#fff" stroke="#eee1d4" stroke-width="1" opacity="${op}" transform="rotate(${s % 60 - 30} ${x} ${y})"/>`;
     default: return '';
   }
 }
 
-const MIXIN_KIND = { banana: 'banana', chips: 'chip', cookiebits: 'chunk', gummies: 'gummy', mallow: 'mallow' };
+const MIXIN_KIND = { chips: 'chip', cookiebits: 'chunk', gummies: 'gummy', mallow: 'mallow' };
+
+let clipSeq = 0; // unique clip ids: creation is rendered twice on the page (counter + serve card)
 
 function scoopBits(flavor, cx, cy, r, seed) {
   let out = '';
-  if (flavor.bits) spots(seed, 7, r * 0.6).forEach(([dx, dy, s]) => { out += bitSvg(flavor.bits.kind, cx + dx, cy + dy, s); });
+  if (flavor.bits) spots(seed, 7, r * 0.72).forEach(([dx, dy, s]) => { out += bitSvg(flavor.bits.kind, cx + dx, cy + dy, s); });
   let m = 0;
   build.mixins.forEach(id => {
     m++;
-    spots(seed + m * 31, 5, r * 0.62).forEach(([dx, dy, s]) => { out += bitSvg(MIXIN_KIND[id], cx + dx, cy + dy, s); });
+    // stir streaks so mix-ins look folded through, not sprinkled on
+    out += `<path d="M${cx - r * 0.6} ${cy - r * 0.2} Q${cx} ${cy + r * 0.25 * m} ${cx + r * 0.6} ${cy - r * 0.1 * m}" fill="none" stroke="${shade(flavor.c, -26)}" stroke-width="3" opacity="0.35" stroke-linecap="round"/>`;
+    spots(seed + m * 31, 8, r * 0.85).forEach(([dx, dy, s]) => { out += bitSvg(MIXIN_KIND[id], cx + dx, cy + dy, s); });
   });
-  return out;
+  if (!out) return '';
+  const id = 'scoopclip' + (++clipSeq);
+  return `<clipPath id="${id}"><circle cx="${cx}" cy="${cy}" r="${r - 1}"/></clipPath><g clip-path="url(#${id})">${out}</g>`;
 }
 
 function shade(hex, amt) {
@@ -131,8 +144,12 @@ function scoopSvg(flavor, cx, cy, r, seed) {
     ${scoopBits(flavor, cx, cy, r, seed)}`;
 }
 
+function swirlBaseY() {
+  return build.cone.id === 'cup' ? 302 : build.cone.id === 'split' ? 308 : 292;
+}
+
 function swirlSvg(f) {
-  const baseY = build.cone.id === 'cup' ? 302 : 292;
+  const baseY = swirlBaseY();
   const layers = [
     { cy: baseY - 12, rx: 47, ry: 20 },
     { cy: baseY - 38, rx: 37, ry: 17 },
@@ -160,10 +177,21 @@ function coneSvg() {
     case 'cake': return `<path d="M112 300 L188 300 L180 404 Q150 416 120 404 Z" fill="#e8c88f"/>
       <path d="M122 302 L126 404 M136 302 L138 409 M150 302 L150 411 M164 302 L162 409 M178 302 L174 404" stroke="#cfa863" stroke-width="2.5"/>
       <ellipse cx="150" cy="300" rx="38" ry="8" fill="#f2d9a8"/>`;
+    case 'chocdip': return `<path d="M104 296 L196 296 L150 456 Z" fill="#c97f3e"/>
+      <path d="M128 360 L173 360 M136 384 L165 384 M143 408 L158 408 M146 356 L150 440 M154 356 L152 448" stroke="#a5642c" stroke-width="2.2"/>
+      <path d="M104 296 L196 296 L188 322 Q182 342 176 322 L168 326 Q164 348 156 326 Q150 344 144 326 L134 322 Q128 340 122 320 L112 318 Z" fill="#5c4033"/>
+      <rect x="102" y="288" width="96" height="14" rx="7" fill="#5c4033"/>
+      <circle cx="126" cy="302" r="2" fill="#ffd447"/><circle cx="148" cy="308" r="2" fill="#e84a6f"/><circle cx="170" cy="303" r="2" fill="#4fc3f7"/><circle cx="182" cy="310" r="2" fill="#8fd97f"/>`;
     case 'cup': return `<path d="M105 308 L195 308 L184 394 Q150 406 116 394 Z" fill="#ff8fb3"/>
       <path d="M105 308 L195 308 L192 330 L108 330 Z" fill="#ffb9d5"/>
       <ellipse cx="150" cy="308" rx="45" ry="9" fill="#e86f9a"/>
       <circle cx="150" cy="362" r="12" fill="#fff" opacity="0.7"/>`;
+    case 'split': return `
+      <path d="M32 330 Q28 276 74 252 Q84 256 79 264 Q48 286 54 326 Q50 334 32 330 Z" fill="#ffe28a" stroke="#e8c15a" stroke-width="2"/>
+      <path d="M268 330 Q272 276 226 252 Q216 256 221 264 Q252 286 246 326 Q250 334 268 330 Z" fill="#ffe28a" stroke="#e8c15a" stroke-width="2"/>
+      <path d="M36 322 Q150 356 264 322 L252 372 Q150 396 48 372 Z" fill="#cdeeff" opacity="0.9"/>
+      <path d="M36 322 Q150 356 264 322 L261 336 Q150 368 39 336 Z" fill="#a8dcf5"/>
+      <rect x="128" y="392" width="44" height="10" rx="5" fill="#a8dcf5"/>`;
     default: return '';
   }
 }
@@ -194,8 +222,14 @@ function toppingsSvg(top) {
       [[-5, -3], [4, -6], [1, 4], [-6, 5], [7, 2]].map(([a, b]) => `<circle cx="${x + a}" cy="${y + b}" r="2" fill="#4a3428"/>`).join('');
   }
   if (build.toppings.has('bear')) {
-    const x = top.cx - top.r * 0.55, y = top.cy - top.r * 0.6;
-    out += `<g fill="#8fd97f" opacity="0.95"><circle cx="${x}" cy="${y + 6}" r="7"/><circle cx="${x}" cy="${y - 3}" r="5"/><circle cx="${x - 4.5}" cy="${y - 7}" r="2"/><circle cx="${x + 4.5}" cy="${y - 7}" r="2"/></g>`;
+    const bears = [
+      ['#8fd97f', top.cx - top.r * 0.55, top.cy - top.r * 0.6],
+      ['#e84a6f', top.cx + top.r * 0.5, top.cy - top.r * 0.45],
+      ['#ffd447', top.cx - top.r * 0.05, top.cy - top.r * 0.95],
+    ];
+    bears.forEach(([c, x, y]) => {
+      out += `<g fill="${c}" opacity="0.95"><circle cx="${x}" cy="${y + 6}" r="7"/><circle cx="${x}" cy="${y - 3}" r="5"/><circle cx="${x - 4.5}" cy="${y - 7}" r="2"/><circle cx="${x + 4.5}" cy="${y - 7}" r="2"/></g>`;
+    });
   }
   let peakY = top.cy - top.r;
   if (build.toppings.has('whip')) {
@@ -215,12 +249,11 @@ function drawCreation() {
   let top = null;
   if (build.soft) {
     iceCream = swirlSvg(build.soft);
-    const baseY = build.cone.id === 'cup' ? 302 : 292;
-    top = { cx: 150, cy: baseY - 48, r: 34 };
+    top = { cx: 150, cy: swirlBaseY() - 48, r: 34 };
   } else if (build.scoops.length) {
     const centers = scoopCenters();
     iceCream = build.scoops.map((f, i) => scoopSvg(f, centers[i].cx, centers[i].cy, centers[i].r, 7 + i * 13)).join('');
-    top = centers[centers.length - 1];
+    top = centers.reduce((a, b) => (b.cy < a.cy ? b : a)); // highest scoop (middle one on a split)
   }
   return `<svg viewBox="0 0 300 470" xmlns="http://www.w3.org/2000/svg">
     ${iceCream}
@@ -316,6 +349,31 @@ function serve() {
   $('overlay-serve').classList.remove('hidden');
 }
 
+function savePicture() {
+  const svg = drawCreation().replace('<svg ', '<svg width="600" height="940" ');
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = 600; cv.height = 1000;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff6fb';
+    ctx.fillRect(0, 0, 600, 1000);
+    ctx.drawImage(img, 0, 20);
+    ctx.fillStyle = '#e84a6f';
+    ctx.font = 'bold 36px Fredoka, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🍨 The Ice Cream Shop', 300, 980);
+    cv.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'my-ice-cream.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+  };
+  img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+}
+
 function reset() {
   build.cone = CONES[0];
   build.scoops = [];
@@ -327,6 +385,11 @@ function reset() {
 
 /* ============================== BOOT ============================== */
 
+// unsaved-creation guard: browser shows a "leave page?" confirm on back/close/navigation
+window.addEventListener('beforeunload', (e) => {
+  if (build.scoops.length || build.soft) { e.preventDefault(); e.returnValue = ''; }
+});
+
 $('btnUndo').onclick = () => {
   if (build.soft) build.soft = null;
   else build.scoops.pop();
@@ -334,6 +397,7 @@ $('btnUndo').onclick = () => {
 };
 $('btnClear').onclick = reset;
 $('btnServe').onclick = serve;
+$('btnSave').onclick = savePicture;
 $('btnAnother').onclick = () => { $('overlay-serve').classList.add('hidden'); reset(); };
 
 render();
