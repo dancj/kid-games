@@ -1,0 +1,147 @@
+/* The Ice Cream Shop — light + colorful parlor */
+:root {
+  --choco: #5c4033;
+  --mint: #bdf0dd;
+  --sky: #cdeeff;
+  --cream: #fff9ef;
+  --pink: #ffb9d5;
+  --cherry: #e84a6f;
+  font-size: 17px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Fredoka', 'Chalkboard SE', 'Comic Sans MS', sans-serif;
+  color: var(--choco);
+  height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 15%, rgba(255, 185, 213, .5), transparent 40%),
+    radial-gradient(circle at 15% 80%, rgba(189, 240, 221, .6), transparent 45%),
+    repeating-linear-gradient(90deg, #fff6fb 0 70px, #ffeef6 70px 140px);
+}
+
+button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
+.hidden { display: none !important; }
+
+.shop-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px;
+  background: var(--cherry);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(92, 64, 51, .25);
+}
+.shop-header h1 { font-size: 1.6rem; text-shadow: 0 2px 0 rgba(0, 0, 0, .2); }
+.price-sign {
+  background: #fff; color: var(--cherry);
+  padding: 6px 16px; border-radius: 12px;
+  font-weight: 600; transform: rotate(2deg);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .15);
+}
+.price-sign b { font-size: 1.15em; }
+
+.shop { flex: 1; display: flex; gap: 12px; padding: 12px; min-height: 0; }
+
+.station, .shelves {
+  width: 27%; display: flex; flex-direction: column; gap: 12px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.station-label { font-weight: 700; margin-bottom: 8px; font-size: 1.05rem; }
+
+.freezer {
+  background: linear-gradient(180deg, #e8f7ff, var(--sky));
+  border: 4px solid #8fd0f0; border-radius: 18px; padding: 12px;
+}
+.machine {
+  background: linear-gradient(180deg, #f2f2f6, #d8d8e2);
+  border: 4px solid #b8b8c8; border-radius: 18px; padding: 12px;
+}
+.shelf {
+  background: linear-gradient(180deg, #ffe9c9, #f5d9a8);
+  border: 4px solid #d9b97a; border-radius: 18px; padding: 12px;
+}
+
+.tubs, .levers, .shelf-row { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.tub, .lever, .shelf-item {
+  width: 76px; padding: 6px 4px;
+  background: rgba(255, 255, 255, .75);
+  border: 3px solid rgba(92, 64, 51, .15); border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transition: transform .1s;
+}
+.tub:active, .lever:active, .shelf-item:active { transform: scale(.92); }
+.tub svg, .lever svg, .shelf-item svg { width: 52px; height: 52px; }
+.shelf-item .big-emoji { font-size: 2.1rem; line-height: 52px; }
+.item-name { font-size: .68rem; font-weight: 600; text-align: center; }
+.shelf-item.sel, .lever.sel { border-color: var(--cherry); background: #fff0f5; }
+
+.counter {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  position: relative; min-width: 0;
+}
+.scoop-count {
+  font-size: 1.15rem; font-weight: 600; padding: 8px 20px;
+  background: rgba(255, 255, 255, .8); border-radius: 999px;
+  margin-bottom: 6px;
+}
+#creation { flex: 1; display: flex; align-items: flex-end; min-height: 0; }
+#creation svg, #servedCreation svg { height: min(52vh, 420px); display: block; filter: drop-shadow(0 6px 8px rgba(92, 64, 51, .25)); }
+.counter-top {
+  width: 90%; height: 22px; border-radius: 10px;
+  background: linear-gradient(180deg, #f7c8de, var(--pink));
+  box-shadow: 0 6px 0 #e89cbe;
+}
+.build-btns { display: flex; gap: 12px; margin: 14px 0 4px; }
+.small-btn {
+  background: #fff; font-weight: 600; font-size: 1rem;
+  padding: 10px 18px; border-radius: 999px;
+  box-shadow: 0 3px 0 rgba(92, 64, 51, .2);
+}
+.serve-btn {
+  background: linear-gradient(180deg, #ff7fa8, var(--cherry));
+  color: #fff; font-weight: 700; font-size: 1.25rem;
+  padding: 12px 30px; border-radius: 999px;
+  box-shadow: 0 5px 0 #b52e50, 0 8px 16px rgba(232, 74, 111, .35);
+}
+.serve-btn:active, .small-btn:active { transform: translateY(3px); box-shadow: none; }
+
+.sparkle {
+  position: absolute; font-size: 2rem; pointer-events: none; z-index: 10;
+  animation: sparkfly .7s ease-out forwards;
+}
+@keyframes sparkfly {
+  from { transform: scale(.4) translateY(0); opacity: 1; }
+  to { transform: scale(1.4) translateY(-70px); opacity: 0; }
+}
+
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(92, 64, 51, .5);
+  display: flex; align-items: center; justify-content: center;
+}
+.serve-card {
+  background: var(--cream); border-radius: 28px; padding: 26px 44px;
+  text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+  animation: pop .45s cubic-bezier(.2, 1.6, .4, 1);
+  max-height: 92dvh; overflow-y: auto;
+}
+.serve-card h2 { font-size: 2.2rem; color: var(--cherry); margin-bottom: 8px; }
+#servedCreation svg { height: min(48vh, 380px); margin: 0 auto; }
+.receipt { font-size: 1.15rem; margin: 12px 0 18px; }
+@keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* portrait: stations stack around the counter */
+@media (max-aspect-ratio: 4/5) {
+  body { overflow-y: auto; }
+  .shop { flex-direction: column; overflow-y: auto; }
+  .station, .shelves { width: 100%; overflow: visible; }
+  .counter { order: -1; min-height: 52vh; }
+  #creation svg { height: min(38vh, 320px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>The Ice Cream Shop</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="shop-header">
+  <h1>🍨 The Ice Cream Shop</h1>
+  <div class="price-sign">Everything: <b>FREE!</b> $0.00</div>
+</header>
+
+<main class="shop">
+  <!-- left: freezer + soft serve -->
+  <section class="station">
+    <div class="freezer">
+      <div class="station-label">❄️ Freezer</div>
+      <div class="tubs" id="tubs"></div>
+    </div>
+    <div class="machine">
+      <div class="station-label">🍦 Soft Serve</div>
+      <div class="levers" id="levers"></div>
+    </div>
+  </section>
+
+  <!-- center: the creation -->
+  <section class="counter">
+    <div id="scoopCount" class="scoop-count">Pick a cone, then scoop!</div>
+    <div id="creation"></div>
+    <div class="counter-top"></div>
+    <div class="build-btns">
+      <button id="btnUndo" class="small-btn">↩︎ Undo</button>
+      <button id="btnClear" class="small-btn">🗑 Start Over</button>
+      <button id="btnServe" class="serve-btn">Serve it! 🍒</button>
+    </div>
+  </section>
+
+  <!-- right: cones + shelves -->
+  <section class="shelves">
+    <div class="shelf">
+      <div class="station-label">Cones &amp; Cups</div>
+      <div class="shelf-row" id="cones"></div>
+    </div>
+    <div class="shelf">
+      <div class="station-label">🍌 Mix-ins</div>
+      <div class="shelf-row" id="mixins"></div>
+    </div>
+    <div class="shelf">
+      <div class="station-label">🍬 Toppings</div>
+      <div class="shelf-row" id="toppings"></div>
+    </div>
+  </section>
+</main>
+
+<!-- serve overlay -->
+<div id="overlay-serve" class="overlay hidden">
+  <div class="serve-card">
+    <h2 id="compliment">Yummy!</h2>
+    <div id="servedCreation"></div>
+    <p class="receipt">Total: <b>$0.00 — FREE!</b></p>
+    <button id="btnAnother" class="serve-btn">Make Another 🍨</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
