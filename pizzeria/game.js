@@ -4,8 +4,10 @@
 /* ============================== DATA ============================== */
 
 // unlock = money threshold to earn the topping (0 = start)
+// 'base' items (sauce, extra cheese) never count as "toppings" in riddles
 const TOPPINGS = [
-  { id: 'xcheese', name: 'Extra Cheese', tags: ['cheese'], unlock: 0 },
+  { id: 'sauce', name: 'Tomato Sauce', tags: ['base'], unlock: 0 },
+  { id: 'xcheese', name: 'Extra Cheese', tags: ['base', 'cheese'], unlock: 0 },
   { id: 'pepperoni', name: 'Pepperoni', tags: ['meat'], unlock: 0 },
   { id: 'sausage', name: 'Sausage', tags: ['meat'], unlock: 0 },
   { id: 'mushroom', name: 'Mushrooms', tags: ['veggie'], unlock: 0 },
@@ -30,9 +32,15 @@ const FACES = ['🧑', '👧', '👦', '👵', '👴', '🧔', '👩', '🧒', '
 
 /* ============================== STATE ============================== */
 
+const CUSTOMERS_PER_DAY = 5;
+
 const state = {
   money: 0,
   served: 0,
+  day: 1,
+  dayServed: 0,
+  dayEarned: 0,
+  dayHappy: 0,
   customer: null,     // {name, face, order}
   patience: 1,        // 1 → 0
   patienceTotal: 50,  // seconds
@@ -41,14 +49,18 @@ const state = {
   pizza: null,        // {whole:Set, left:Set, right:Set}
 };
 
-function freshPizza() { return { whole: new Set(), left: new Set(), right: new Set() }; }
+function freshPizza() { return { whole: new Set(['sauce']), left: new Set(), right: new Set() }; }
 
 function unlocked() { return TOPPINGS.filter(t => t.unlock <= state.money); }
+function pickable() { return unlocked().filter(t => !t.tags.includes('base')); } // riddle candidates
 function halvesUnlocked() { return state.money >= HALF_UNLOCK; }
 function byId(id) { return TOPPINGS.find(t => t.id === id); }
+function isBase(id) { return byId(id).tags.includes('base'); }
 
 // union of all placements (generous: a half-topping still "counts" on whole-pizza orders)
 function unionSet(p) { return new Set([...p.whole, ...p.left, ...p.right]); }
+// real toppings only — sauce and cheese are free extras in every riddle except "cheesy" ones
+function topsOf(p) { return [...unionSet(p)].filter(id => !isBase(id)); }
 
 /* ============================== RIDDLE ORDERS ============================== */
 
@@ -68,8 +80,8 @@ const TEMPLATES = [
     make(name) {
       return {
         text: `${name} wants a plain cheese pizza — nothing on top!`,
-        check: (p) => unionSet(p).size === 0,
-        explain: 'No toppings at all.',
+        check: (p) => topsOf(p).length === 0,
+        explain: 'No toppings at all (sauce and cheese are fine).',
       };
     },
   },
@@ -79,7 +91,7 @@ const TEMPLATES = [
       const n = 2 + rnd(3);
       return {
         text: `${name} wants exactly ${n} toppings — chef's choice!`,
-        check: (p) => unionSet(p).size === n,
+        check: (p) => topsOf(p).length === n,
         explain: `Any ${n} different toppings.`,
       };
     },
@@ -87,28 +99,26 @@ const TEMPLATES = [
   {
     id: 'meats',
     make(name) {
-      const meats = unlocked().filter(t => t.tags.includes('meat'));
+      const meats = pickable().filter(t => t.tags.includes('meat'));
       const n = Math.min(2 + rnd(2), meats.length);
       return {
         text: `${name} wants a cheesy pizza with ${n} different meats.`,
         check: (p) => {
-          const u = unionSet(p);
-          const meatCount = [...u].filter(id => byId(id).tags.includes('meat')).length;
-          return u.has('xcheese') && meatCount === n && u.size === n + 1;
+          const tops = topsOf(p);
+          return unionSet(p).has('xcheese') && tops.length === n && tops.every(id => byId(id).tags.includes('meat'));
         },
-        explain: `Extra cheese plus ${n} meats — nothing else.`,
+        explain: `Extra cheese plus ${n} meats — no other toppings.`,
       };
     },
   },
   {
     id: 'dislike',
     make(name) {
-      const options = unlocked().filter(t => t.id !== 'xcheese');
-      const hated = pickOne(options);
+      const hated = pickOne(pickable());
       const n = 2 + rnd(2);
       return {
         text: `${name} wants ${n} toppings, but does NOT like ${hated.name.toLowerCase()}.`,
-        check: (p) => { const u = unionSet(p); return u.size === n && !u.has(hated.id); },
+        check: (p) => { const tops = topsOf(p); return tops.length === n && !tops.includes(hated.id); },
         explain: `Any ${n} toppings, as long as none of them are ${hated.name.toLowerCase()}.`,
       };
     },
@@ -116,10 +126,10 @@ const TEMPLATES = [
   {
     id: 'duo',
     make(name) {
-      const [a, b] = pickSome(unlocked().filter(t => t.id !== 'xcheese'), 2);
+      const [a, b] = pickSome(pickable(), 2);
       return {
         text: `${name} wants ${a.name.toLowerCase()} and ${b.name.toLowerCase()} — that's it!`,
-        check: (p) => { const u = unionSet(p); return u.size === 2 && u.has(a.id) && u.has(b.id); },
+        check: (p) => { const tops = topsOf(p); return tops.length === 2 && tops.includes(a.id) && tops.includes(b.id); },
         explain: `Just ${a.name} and ${b.name}.`,
       };
     },
@@ -127,13 +137,13 @@ const TEMPLATES = [
   {
     id: 'veggie',
     make(name) {
-      const veggies = unlocked().filter(t => t.tags.includes('veggie'));
+      const veggies = pickable().filter(t => t.tags.includes('veggie'));
       const n = Math.min(2 + rnd(2), veggies.length);
       return {
         text: `${name} is vegetarian: ${n} toppings, veggies only!`,
         check: (p) => {
-          const u = unionSet(p);
-          return u.size === n && [...u].every(id => byId(id).tags.includes('veggie'));
+          const tops = topsOf(p);
+          return tops.length === n && tops.every(id => byId(id).tags.includes('veggie'));
         },
         explain: `${n} toppings and every one a veggie.`,
       };
@@ -142,18 +152,18 @@ const TEMPLATES = [
   {
     id: 'green',
     make(name) {
-      const greens = unlocked().filter(t => t.tags.includes('green'));
+      const greens = pickable().filter(t => t.tags.includes('green'));
       const n = Math.min(1 + rnd(2), greens.length);
       return {
         text: `${name} wants a pizza as green as a frog — ${n} green topping${n > 1 ? 's' : ''} only!`,
         check: (p) => {
-          const u = unionSet(p);
-          return u.size === n && [...u].every(id => byId(id).tags.includes('green'));
+          const tops = topsOf(p);
+          return tops.length === n && tops.every(id => byId(id).tags.includes('green'));
         },
         explain: `${n} green topping${n > 1 ? 's' : ''} (like peppers or basil) and nothing else.`,
       };
     },
-    need: () => unlocked().some(t => t.tags.includes('green')),
+    need: () => pickable().some(t => t.tags.includes('green')),
   },
   {
     id: 'spicy',
@@ -162,13 +172,13 @@ const TEMPLATES = [
       return {
         text: `${name} dares you: ${n} toppings and at least one SPICY! 🌶`,
         check: (p) => {
-          const u = unionSet(p);
-          return u.size === n && [...u].some(id => byId(id).tags.includes('spicy'));
+          const tops = topsOf(p);
+          return tops.length === n && tops.some(id => byId(id).tags.includes('spicy'));
         },
         explain: `${n} toppings including something spicy (jalapeños!).`,
       };
     },
-    need: () => unlocked().some(t => t.tags.includes('spicy')),
+    need: () => pickable().some(t => t.tags.includes('spicy')),
   },
   {
     id: 'fruity',
@@ -177,27 +187,27 @@ const TEMPLATES = [
       return {
         text: `${name} wants something fruity — ${n} topping${n > 1 ? 's' : ''}, one must be a fruit!`,
         check: (p) => {
-          const u = unionSet(p);
-          return u.size === n && [...u].some(id => byId(id).tags.includes('fruit'));
+          const tops = topsOf(p);
+          return tops.length === n && tops.some(id => byId(id).tags.includes('fruit'));
         },
         explain: `${n} topping${n > 1 ? 's' : ''} including pineapple.`,
       };
     },
-    need: () => unlocked().some(t => t.tags.includes('fruit')),
+    need: () => pickable().some(t => t.tags.includes('fruit')),
   },
   {
     id: 'half',
     make(name) {
-      const [a, b] = pickSome(unlocked().filter(t => t.id !== 'xcheese'), 2);
+      const [a, b] = pickSome(pickable(), 2);
       return {
         text: `${name} wants ${a.name.toLowerCase()} on one half and ${b.name.toLowerCase()} on the other!`,
         check: (p) => {
-          if (p.whole.size) return false;
+          if ([...p.whole].some(id => !isBase(id))) return false; // base items on the whole are fine
           const l = p.left, r = p.right;
           const is = (s, id) => s.size === 1 && s.has(id);
           return (is(l, a.id) && is(r, b.id)) || (is(l, b.id) && is(r, a.id));
         },
-        explain: `${a.name} on one half, ${b.name} on the other — nothing on the whole pizza.`,
+        explain: `${a.name} on one half, ${b.name} on the other — nothing extra on the whole pizza.`,
       };
     },
     need: () => halvesUnlocked(),
@@ -233,6 +243,7 @@ function spotsFor(id, region, n) {
 
 function pieceSvg(id, x, y, s) {
   switch (id) {
+    case 'sauce': return `<circle cx="${x}" cy="${y}" r="11" fill="#d94f35"/><circle cx="${x - 3}" cy="${y - 3}" r="3" fill="#ef6a56"/>`;
     case 'xcheese': return `<ellipse cx="${x}" cy="${y}" rx="13" ry="9" fill="#ffe9a8" opacity="0.9" transform="rotate(${s % 90} ${x} ${y})"/>`;
     case 'pepperoni': return `<circle cx="${x}" cy="${y}" r="10" fill="#c0392b"/><circle cx="${x}" cy="${y}" r="7.5" fill="#d95445"/><circle cx="${x - 2}" cy="${y - 2}" r="1.4" fill="#a52f22"/><circle cx="${x + 3}" cy="${y + 2}" r="1.4" fill="#a52f22"/>`;
     case 'sausage': return `<path d="M${x - 7} ${y} Q${x - 4} ${y - 7} ${x + 2} ${y - 5} Q${x + 8} ${y - 3} ${x + 6} ${y + 3} Q${x + 3} ${y + 7} ${x - 3} ${y + 5} Q${x - 8} ${y + 4} ${x - 7} ${y} Z" fill="#9c6644"/><circle cx="${x - 2}" cy="${y}" r="1.3" fill="#7a4c30"/>`;
@@ -257,17 +268,19 @@ function drawPizza() {
   const p = state.pizza;
   let bits = '';
   const put = (set, region) => set.forEach(id => {
+    if (id === 'sauce') return; // sauce is a layer, not scattered pieces
     spotsFor(id, region, region === 'whole' ? 8 : 4).forEach(([x, y, s]) => { bits += pieceSvg(id, x, y, s); });
   });
   put(p.whole, 'whole'); put(p.left, 'left'); put(p.right, 'right');
 
   const divider = halvesUnlocked() && (p.left.size || p.right.size)
     ? `<line x1="130" y1="34" x2="130" y2="226" stroke="#e8b45a" stroke-width="2" stroke-dasharray="6 6" opacity="0.7"/>` : '';
+  const sauce = p.whole.has('sauce') ? `<circle cx="130" cy="130" r="102" fill="#d94f35"/>` : '';
 
   return `<svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
     <circle cx="130" cy="130" r="122" fill="#e8b45a"/>
     <circle cx="130" cy="130" r="121" fill="none" stroke="#d09a3e" stroke-width="6" stroke-dasharray="2 9" opacity="0.6"/>
-    <circle cx="130" cy="130" r="102" fill="#d94f35"/>
+    ${sauce}
     <circle cx="130" cy="130" r="97" fill="#f7d872"/>
     <circle cx="112" cy="112" r="30" fill="#fbe28f" opacity="0.8"/>
     <circle cx="155" cy="150" r="24" fill="#fbe28f" opacity="0.6"/>
@@ -291,15 +304,17 @@ function regionOf(id) {
 }
 
 function buildBins() {
-  $('bins').innerHTML = TOPPINGS.map(t => {
+  const bin = (t) => {
     const locked = t.unlock > state.money;
     const on = !!regionOf(t.id);
     return `<button class="bin ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-id="${t.id}">
       ${binSvg(t)}
       ${locked ? `<span class="lock-badge">🔒</span><span class="price-tag">earn $${t.unlock}</span>` : ''}
       <span class="item-name">${t.name}</span></button>`;
-  }).join('');
-  $('bins').querySelectorAll('.bin').forEach(b => { b.onclick = () => tapBin(b.dataset.id); });
+  };
+  $('baseBins').innerHTML = TOPPINGS.filter(t => t.tags.includes('base')).map(bin).join('');
+  $('bins').innerHTML = TOPPINGS.filter(t => !t.tags.includes('base')).map(bin).join('');
+  document.querySelectorAll('.bin[data-id]').forEach(b => { b.onclick = () => tapBin(b.dataset.id); });
 }
 
 function tapBin(id) {
@@ -307,8 +322,9 @@ function tapBin(id) {
   if (t.unlock > state.money) return;
   const p = state.pizza;
   const cur = regionOf(id);
+  const target = isBase(id) ? 'whole' : state.target; // sauce & cheese always cover the whole pizza
   ['whole', 'left', 'right'].forEach(r => p[r].delete(id));
-  if (cur !== state.target) p[state.target].add(id); // same region tap = remove, else move/add
+  if (cur !== target) p[target].add(id); // same region tap = remove, else move/add
   refreshPizza();
 }
 
@@ -355,6 +371,9 @@ function updatePatience() {
 }
 
 function customerLeaves() {
+  state.served++;
+  state.dayServed++;
+  updateHud();
   showResult('😡', `${state.customer.name} stormed off!`, 'Too slow — try to serve before the patience bar runs out.', 'No sale. $0');
 }
 
@@ -371,22 +390,25 @@ function servePizza() {
 
 function scoreAndShow() {
   const c = state.customer;
-  const count = unionSet(state.pizza).size;
+  const count = topsOf(state.pizza).length + (unionSet(state.pizza).has('xcheese') ? 1 : 0);
   const price = 8 + count;
   const correct = c.check(state.pizza);
+  state.served++;
+  state.dayServed++;
 
   if (correct) {
     const tip = Math.ceil(state.patience * (3 + count));
     const total = price + tip;
     state.money += total;
-    state.served++;
+    state.dayEarned += total;
+    state.dayHappy++;
     showResult(faceFor(Math.max(state.patience, 0.4)), `${c.name} loves it!`,
       state.patience > 0.6 ? 'Fast and delicious — amazing service!' : 'Tasty! A little faster next time for a bigger tip.',
       `+$${price} pizza  +$${tip} tip  =  $${total}`);
   } else {
     const total = Math.floor(price / 2);
     state.money += total;
-    state.served++;
+    state.dayEarned += total;
     showResult('😕', `${c.name} frowns… that's not the order!`,
       `The order was: ${c.explain}`,
       `Half price only: +$${total}, no tip`);
@@ -406,7 +428,7 @@ function showResult(face, title, detail, money) {
 
 function updateHud() {
   $('money').textContent = `💰 $${state.money}`;
-  $('served').textContent = `Customers: ${state.served}`;
+  $('served').textContent = `Day ${state.day} · ${Math.min(state.dayServed, CUSTOMERS_PER_DAY)}/${CUSTOMERS_PER_DAY}`;
 }
 
 // unlock check runs when leaving the result screen so the reveal doesn't stack overlays
@@ -436,11 +458,34 @@ $('btnOpen').onclick = () => {
 };
 $('btnServePizza').onclick = servePizza;
 $('btnClearPizza').onclick = () => { state.pizza = freshPizza(); refreshPizza(); };
+function dayOver() { return state.dayServed >= CUSTOMERS_PER_DAY; }
+
+function showDaySummary() {
+  $('dayTitle').textContent = `Day ${state.day} complete!`;
+  $('daySummary').textContent = `${state.dayHappy} of ${state.dayServed} customers left happy. Time to close up and rest.`;
+  $('dayMoney').textContent = `Earned today: $${state.dayEarned}  ·  Total: $${state.money}`;
+  $('btnNextDay').textContent = `Open Day ${state.day + 1} 🔔`;
+  $('overlay-day').classList.remove('hidden');
+}
+
+function proceed() {
+  if (dayOver()) { showDaySummary(); return; }
+  nextCustomer();
+}
+
 $('btnNextCust').onclick = () => {
   $('overlay-result').classList.add('hidden');
-  if (!checkUnlocks()) nextCustomer();
+  if (!checkUnlocks()) proceed();
 };
-$('btnUnlockOk').onclick = () => { $('overlay-unlock').classList.add('hidden'); nextCustomer(); };
+$('btnUnlockOk').onclick = () => { $('overlay-unlock').classList.add('hidden'); proceed(); };
+$('btnNextDay').onclick = () => {
+  state.day++;
+  state.dayServed = 0;
+  state.dayEarned = 0;
+  state.dayHappy = 0;
+  $('overlay-day').classList.add('hidden');
+  nextCustomer();
+};
 $('targetChips').querySelectorAll('.chip').forEach(c => { c.onclick = () => setTarget(c.dataset.target); });
 
 updateHud();
