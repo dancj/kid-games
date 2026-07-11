@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Pizzeria</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top-bar">
+  <h1>🍕 Pizzeria</h1>
+  <div class="hud">
+    <span id="money" class="money">💰 $0</span>
+    <span id="served" class="served">Customers: 0</span>
+  </div>
+</header>
+
+<!-- title -->
+<div id="screen-title" class="screen active">
+  <div class="title-card">
+    <div class="title-pizza">🍕</div>
+    <h2>Welcome to your Pizzeria!</h2>
+    <p>Customers order in riddles. Build the right pizza before they lose their patience — great service means great tips!</p>
+    <button id="btnOpen" class="big-btn">Open the Shop! 🔔</button>
+  </div>
+</div>
+
+<!-- shop -->
+<div id="screen-shop" class="screen">
+  <div class="customer-row">
+    <div class="customer">
+      <div id="custFace" class="cust-face">🧑</div>
+      <div id="custName" class="cust-name"></div>
+    </div>
+    <div class="bubble" id="riddle"></div>
+    <div class="patience">
+      <div class="patience-label">Patience</div>
+      <div class="patience-track"><div id="patienceBar" class="patience-bar"></div></div>
+    </div>
+  </div>
+
+  <div class="work-area">
+    <div id="targetChips" class="target-chips hidden">
+      <button class="chip sel" data-target="whole">Whole 🍕</button>
+      <button class="chip" data-target="left">Left half ◐</button>
+      <button class="chip" data-target="right">Right half ◑</button>
+    </div>
+    <div id="pizza"></div>
+    <div class="actions">
+      <button id="btnClearPizza" class="small-btn">🗑 Scrape it off</button>
+      <button id="btnServePizza" class="serve-btn">Serve it! 🛎</button>
+    </div>
+  </div>
+
+  <div class="drawers">
+    <div class="station-label">🧀 Topping Drawers</div>
+    <div id="bins" class="bins"></div>
+  </div>
+</div>
+
+<!-- baking -->
+<div id="overlay-bake" class="overlay hidden">
+  <div class="bake-card">🔥 Baking… 🍕</div>
+</div>
+
+<!-- result -->
+<div id="overlay-result" class="overlay hidden">
+  <div class="result-card">
+    <div id="resultFace" class="result-face">😊</div>
+    <h2 id="resultTitle"></h2>
+    <p id="resultDetail"></p>
+    <p id="resultMoney" class="result-money"></p>
+    <button id="btnNextCust" class="big-btn">Next Customer 🔔</button>
+  </div>
+</div>
+
+<!-- unlock -->
+<div id="overlay-unlock" class="overlay hidden">
+  <div class="result-card">
+    <h2>🎉 New Toppings Unlocked!</h2>
+    <div id="unlockList" class="unlock-list"></div>
+    <button id="btnUnlockOk" class="big-btn">Awesome!</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
