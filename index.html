@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dan's Game Arcade</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Fredoka', 'Chalkboard SE', 'Comic Sans MS', sans-serif;
+    min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 20px;
+    color: #4a2b5f;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255, 212, 71, .35), transparent 40%),
+      radial-gradient(circle at 85% 75%, rgba(127, 232, 198, .4), transparent 45%),
+      linear-gradient(160deg, #ffd9ec, #d9c8ff);
+  }
+  h1 {
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    color: #e84a97;
+    text-shadow: 2px 2px 0 #fff, 4px 4px 0 #b79cff;
+    transform: rotate(-2deg);
+    margin-bottom: 8px;
+  }
+  .sub { font-size: 1.2rem; margin-bottom: 40px; }
+  .games { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; max-width: 900px; }
+  .game-card {
+    display: block; text-decoration: none; color: inherit;
+    background: #fff; border-radius: 24px; padding: 28px 32px;
+    width: 260px; text-align: center;
+    box-shadow: 0 8px 24px rgba(74, 43, 95, .2);
+    transition: transform .15s;
+  }
+  .game-card:hover, .game-card:focus-visible { transform: translateY(-6px) rotate(-1deg); }
+  .game-card .icon { font-size: 4rem; }
+  .game-card h2 { font-size: 1.5rem; margin: 10px 0 6px; }
+  .game-card p { font-size: .95rem; color: #7a6690; }
+  .soon { opacity: .55; pointer-events: none; }
+</style>
+</head>
+<body>
+  <h1>Dan's Game Arcade</h1>
+  <p class="sub">Pick a game and play!</p>
+  <div class="games">
+    <a class="game-card" href="fashion-for-life/">
+      <div class="icon">💅</div>
+      <h2>Fashion for Life</h2>
+      <p>Style your model against the clock and win the judges' stars!</p>
+    </a>
+    <div class="game-card soon">
+      <div class="icon">🎮</div>
+      <h2>Coming Soon</h2>
+      <p>More games on the way…</p>
+    </div>
+  </div>
+</body>
+</html>

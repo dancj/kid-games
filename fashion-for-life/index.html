@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Fashion for Life</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- TITLE -->
+<div id="screen-title" class="screen active">
+  <div class="title-card">
+    <h1 class="game-title">Fashion <span>for</span> Life</h1>
+    <p class="tagline">Style your model. Beat the clock. Win the stars!</p>
+    <div class="skin-pick">
+      <p>Pick your model</p>
+      <div id="skinRow"></div>
+    </div>
+    <button id="btnPlay" class="big-btn">Play! 💖</button>
+  </div>
+</div>
+
+<!-- THEME ANNOUNCEMENT -->
+<div id="overlay-theme" class="overlay hidden">
+  <div class="theme-card">
+    <p class="round-label" id="themeRound"></p>
+    <div class="theme-emoji" id="themeEmoji"></div>
+    <h2 id="themeName"></h2>
+    <p class="theme-hint" id="themeHint"></p>
+    <p class="theme-time" id="themeTime"></p>
+  </div>
+</div>
+
+<!-- SALON -->
+<div id="screen-salon" class="screen">
+  <header class="salon-header">
+    <div class="theme-banner" id="salonTheme"></div>
+    <div class="timer" id="timer">⏰ 90</div>
+    <button id="btnDone" class="done-btn">Done! ✨</button>
+  </header>
+  <main class="salon-main">
+    <div class="doll-area">
+      <div class="mirror"></div>
+      <div id="dollWrap"></div>
+      <div class="salon-chair"></div>
+    </div>
+    <div class="panel">
+      <nav class="tabs" id="tabs"></nav>
+      <div class="tab-content" id="tabContent"></div>
+    </div>
+  </main>
+</div>
+
+<!-- STAGE -->
+<div id="screen-stage" class="screen">
+  <div class="curtain left"></div>
+  <div class="curtain right"></div>
+  <div class="stage-inner">
+    <h2 class="stage-title" id="stageTitle">Judging time!</h2>
+    <div class="spotlight">
+      <div id="stageDoll"></div>
+    </div>
+    <div id="poseBar" class="pose-bar hidden">
+      <p>Strike a pose!</p>
+      <div id="poseBtns" class="pose-btns"></div>
+      <button id="btnReady" class="big-btn">Ready! ✨</button>
+    </div>
+    <div class="judges" id="judges"></div>
+    <div class="player-stars" id="playerStars"></div>
+    <div id="scoreboard" class="scoreboard hidden"></div>
+    <button id="btnNext" class="big-btn hidden">Next ➜</button>
+  </div>
+</div>
+
+<!-- UNLOCKS -->
+<div id="overlay-unlock" class="overlay hidden">
+  <div class="unlock-card">
+    <h2>🎁 New Supplies!</h2>
+    <div id="unlockItems"></div>
+    <button id="btnUnlockOk" class="big-btn">Yay!</button>
+  </div>
+</div>
+
+<!-- FINAL -->
+<div id="screen-final" class="screen">
+  <div class="final-card">
+    <div class="trophy">🏆</div>
+    <h2 id="finalTitle"></h2>
+    <div id="finalBoard"></div>
+    <button id="btnAgain" class="big-btn">Play Again 💫</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
