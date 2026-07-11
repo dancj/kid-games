@@ -75,7 +75,15 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
   flex: 1; background: #fff; border-radius: 18px; padding: 12px 18px;
   font-size: 1.2rem; font-weight: 500; position: relative;
   box-shadow: 0 4px 12px rgba(92, 58, 33, .15);
+  display: flex; align-items: center; gap: 12px;
 }
+.bubble #riddle { flex: 1; }
+.speak-btn {
+  flex: none; width: 48px; height: 48px; border-radius: 50%;
+  font-size: 1.5rem; background: var(--cream);
+  box-shadow: 0 3px 0 rgba(92, 58, 33, .25);
+}
+.speak-btn:active { transform: translateY(3px); box-shadow: none; }
 .bubble::before {
   content: ''; position: absolute; left: -10px; top: 50%;
   border: 10px solid transparent; border-right-color: #fff; border-left: 0;
@@ -149,11 +157,28 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
   background: rgba(92, 58, 33, .55);
   display: flex; align-items: center; justify-content: center;
 }
-.bake-card {
-  font-size: 2.4rem; font-weight: 700; color: #fff;
-  animation: bakepulse .5s infinite alternate;
+.oven-card { text-align: center; width: min(88vw, 400px); }
+.oven-label {
+  color: #fff; font-size: 1.35rem; font-weight: 700; margin-bottom: 10px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .4);
 }
-@keyframes bakepulse { to { transform: scale(1.15); } }
+.oven-stage svg { width: 100%; max-height: 56dvh; display: block; margin: 0 auto; }
+.slice-wrap { animation: pop .3s cubic-bezier(.2, 1.6, .4, 1); }
+.oven-track {
+  height: 14px; background: rgba(255, 255, 255, .25); border-radius: 999px;
+  overflow: hidden; margin-top: 12px;
+}
+.oven-bar {
+  height: 100%; width: 0; border-radius: 999px;
+  background: linear-gradient(90deg, #ffd447, #ff7a3a);
+}
+.flame {
+  transform-box: fill-box; transform-origin: 50% 100%;
+  animation: flick .35s infinite alternate;
+}
+.f1 { animation-delay: .08s; } .f2 { animation-delay: .16s; }
+.f3 { animation-delay: .24s; } .f4 { animation-delay: .12s; }
+@keyframes flick { from { transform: scaleY(.7); } to { transform: scaleY(1.25); } }
 .result-card {
   background: var(--cream); border-radius: 28px; padding: 30px 44px;
   text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
@@ -167,6 +192,31 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
 .result-money { font-size: 1.4rem; font-weight: 700; color: #2e7d32; margin-bottom: 14px; }
 .unlock-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 14px 0 20px; }
 .unlock-list .bin { pointer-events: none; }
+
+/* store */
+.store-btn { display: block; margin: 0 auto 12px; background: linear-gradient(180deg, #8fc97a, #5e9e4d); box-shadow: 0 5px 0 #3f7233, 0 9px 18px rgba(94, 158, 77, .35); }
+.store-list {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+  margin: 4px 0 18px; max-width: 520px;
+}
+.store-item {
+  width: 112px; padding: 8px 6px;
+  background: #fff; border: 3px solid rgba(92, 58, 33, .2); border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.store-item:active { transform: scale(.93); }
+.store-emoji { font-size: 2rem; }
+.store-desc { font-size: .62rem; color: #8a6a4e; }
+.store-price { font-size: .78rem; font-weight: 700; color: var(--red-deep); }
+.store-item.owned { border-color: var(--green); background: #eefae8; }
+.store-item.owned .store-price { color: #2e7d32; }
+.store-item.locked { filter: grayscale(.8); opacity: .6; }
+
+/* decorations shelf */
+.decor-shelf {
+  display: flex; justify-content: center; gap: 16px;
+  font-size: 1.5rem; padding: 0 0 2px;
+}
 
 @media (max-aspect-ratio: 4/5) {
   .customer-row { flex-wrap: wrap; }

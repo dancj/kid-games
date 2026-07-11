@@ -28,13 +28,13 @@ global.document = {
 };
 
 const src = fs.readFileSync(path.join(__dirname, 'game.js'), 'utf8');
-eval(src + '\nmodule.exports = { state, freshPizza, unionSet, TEMPLATES, TOPPINGS, newOrder, drawPizza, pieceSvg, spotsFor, HALF_UNLOCK };');
+eval(src + '\nmodule.exports = { state, freshPizza, unionSet, TEMPLATES, TOPPINGS, newOrder, drawPizza, ovenSvg, pieceSvg, spotsFor, HALF_UNLOCK, UPGRADES, bakeMs, decoCount, canBuy, buyUpgrade, CUTS_NEEDED, speak, stopSpeaking };');
 const g = module.exports;
 
 const P = (whole = [], left = [], right = []) => ({ whole: new Set(whole), left: new Set(left), right: new Set(right) });
 const tpl = (id) => g.TEMPLATES.find(t => t.id === id);
 
-g.state.money = 0;
+g.state.earned = 0;
 const nonBase = g.TOPPINGS.filter(t => !t.tags.includes('base'));
 
 // plain: sauce and cheese are always allowed
@@ -44,7 +44,7 @@ assert(o.check(P(['sauce', 'xcheese'])), 'plain: sauce + extra cheese still coun
 assert(!o.check(P(['olive'])), 'plain: topping = wrong');
 
 // meats: "cheesy pizza with N meats"
-g.state.money = 999; // unlock everything so templates can use all toppings
+g.state.earned = 999; // unlock everything so templates can use all toppings
 for (let i = 0; i < 50; i++) {
   o = tpl('meats').make('Andy');
   const n = +o.text.match(/(\d+) different meats/)[1];
@@ -90,8 +90,8 @@ o = tpl('half').make('Leo');
 }
 
 // every unlocked-state generator produces valid orders without throwing
-for (const money of [0, 20, 40, 60, 80, 120]) {
-  g.state.money = money;
+for (const earned of [0, 20, 40, 60, 80, 120]) {
+  g.state.earned = earned;
   for (let i = 0; i < 100; i++) {
     g.state.served = i % 10;
     const ord = g.newOrder();
@@ -103,7 +103,7 @@ for (const money of [0, 20, 40, 60, 80, 120]) {
 }
 
 // pizza renders every topping in every region, no NaN/undefined
-g.state.money = 999;
+g.state.earned = 999;
 for (const t of g.TOPPINGS) {
   for (const region of ['whole', 'left', 'right']) {
     g.state.pizza = P();
@@ -118,5 +118,44 @@ for (const t of g.TOPPINGS) {
   g.spotsFor(t.id, 'left', 8).forEach(([x]) => assert(x <= 131, `left spot leaked right: ${t.id} x=${x}`));
   g.spotsFor(t.id, 'right', 8).forEach(([x]) => assert(x >= 129, `right spot leaked left: ${t.id} x=${x}`));
 }
+
+// baked + sliced pizza and oven render clean
+g.state.pizza = P(['sauce', 'pepperoni']);
+for (let cuts = 0; cuts <= g.CUTS_NEEDED; cuts++) {
+  const svg = g.drawPizza({ baked: true, cuts });
+  assert(!svg.includes('undefined') && !svg.includes('NaN'), `bad sliced svg cuts=${cuts}`);
+  assert(svg.split('<line').length - 1 >= cuts, `missing cut lines at cuts=${cuts}`);
+}
+{
+  const svg = g.ovenSvg();
+  assert(svg.includes('<svg') && !svg.includes('undefined') && !svg.includes('NaN'), 'bad oven svg');
+}
+
+// oven upgrades shorten bake time
+g.state.owned = new Set();
+const slow = g.bakeMs();
+g.state.owned.add('oven2');
+const fast = g.bakeMs();
+g.state.owned.add('oven3');
+const turbo = g.bakeMs();
+assert(slow > fast && fast > turbo, 'each oven upgrade bakes faster');
+
+// store: buy rules — afford, no double-buy, oven3 needs oven2, spending never re-locks toppings
+g.state.owned = new Set();
+g.state.money = 50;
+g.state.earned = 999;
+assert(!g.canBuy(g.UPGRADES.find(u => u.id === 'oven3')), 'oven3 locked without oven2');
+g.buyUpgrade('plant');
+assert(g.state.money === 35 && g.state.owned.has('plant'), 'plant bought, money deducted');
+g.buyUpgrade('plant');
+assert(g.state.money === 35, 'no double-buy');
+g.buyUpgrade('cat'); // costs 100 > 35
+assert(!g.state.owned.has('cat') && g.state.money === 35, 'cannot afford cat');
+assert(g.decoCount() === 1, 'one decoration owned');
+assert(g.TOPPINGS.every(t => t.unlock <= g.state.earned), 'earned untouched by spending — toppings stay unlocked');
+
+// speech is a safe no-op where speechSynthesis is unavailable
+g.speak();
+g.stopSpeaking();
 
 console.log('all checks passed');

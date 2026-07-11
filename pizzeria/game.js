@@ -27,6 +27,20 @@ const TOPPINGS = [
 
 const HALF_UNLOCK = 50; // $ earned before half-and-half orders appear
 
+// Store upgrades — bought with spendable money (unlocks key off lifetime earnings, so
+// spending never re-locks toppings). Decorations each add +$1 to every tip.
+const UPGRADES = [
+  { id: 'oven2', name: 'Speedy Oven', emoji: '🔥', cost: 40, desc: 'Bakes twice as fast!' },
+  { id: 'oven3', name: 'Turbo Oven', emoji: '🚀', cost: 120, desc: 'Bakes in a flash!', needs: 'oven2' },
+  { id: 'plant', name: 'Potted Plant', emoji: '🪴', cost: 15, desc: 'A touch of green. +$1 tips!', deco: true },
+  { id: 'lights', name: 'Fairy Lights', emoji: '✨', cost: 25, desc: 'Cozy sparkle. +$1 tips!', deco: true },
+  { id: 'jukebox', name: 'Jukebox', emoji: '📻', cost: 50, desc: 'Parlor tunes. +$1 tips!', deco: true },
+  { id: 'disco', name: 'Disco Ball', emoji: '🪩', cost: 75, desc: 'Pizza party! +$1 tips!', deco: true },
+  { id: 'cat', name: 'Pizzeria Cat', emoji: '🐈', cost: 100, desc: 'Purr-fect greeter. +$1 tips!', deco: true },
+];
+
+const CUTS_NEEDED = 4; // taps to slice a pizza into 8
+
 const NAMES = ['Andy', 'Margot', 'Zoe', 'Leo', 'Ruby', 'Max', 'Mia', 'Sam', 'Lily', 'Oscar', 'Nina', 'Theo'];
 const FACES = ['🧑', '👧', '👦', '👵', '👴', '🧔', '👩', '🧒', '👱', '🧕'];
 
@@ -35,7 +49,9 @@ const FACES = ['🧑', '👧', '👦', '👵', '👴', '🧔', '👩', '🧒', '
 const CUSTOMERS_PER_DAY = 5;
 
 const state = {
-  money: 0,
+  money: 0,        // spendable at the store
+  earned: 0,       // lifetime earnings — drives topping unlocks
+  owned: new Set(),
   served: 0,
   day: 1,
   dayServed: 0,
@@ -45,15 +61,20 @@ const state = {
   patience: 1,        // 1 → 0
   patienceTotal: 50,  // seconds
   tickId: null,
+  bakeId: null,
+  slicing: false,
+  cuts: 0,
   target: 'whole',
   pizza: null,        // {whole:Set, left:Set, right:Set}
 };
 
 function freshPizza() { return { whole: new Set(['sauce']), left: new Set(), right: new Set() }; }
 
-function unlocked() { return TOPPINGS.filter(t => t.unlock <= state.money); }
+function unlocked() { return TOPPINGS.filter(t => t.unlock <= state.earned); }
 function pickable() { return unlocked().filter(t => !t.tags.includes('base')); } // riddle candidates
-function halvesUnlocked() { return state.money >= HALF_UNLOCK; }
+function halvesUnlocked() { return state.earned >= HALF_UNLOCK; }
+function decoCount() { return UPGRADES.filter(u => u.deco && state.owned.has(u.id)).length; }
+function bakeMs() { return state.owned.has('oven3') ? 1200 : state.owned.has('oven2') ? 2200 : 4000; }
 function byId(id) { return TOPPINGS.find(t => t.id === id); }
 function isBase(id) { return byId(id).tags.includes('base'); }
 
@@ -264,7 +285,17 @@ function pieceSvg(id, x, y, s) {
   }
 }
 
-function drawPizza() {
+const CUT_ANGLES = [90, 0, 45, 135]; // degrees, in tap order
+
+function cutLinesSvg(n) {
+  return CUT_ANGLES.slice(0, n).map(deg => {
+    const a = deg * Math.PI / 180;
+    const dx = Math.cos(a) * 118, dy = Math.sin(a) * 118;
+    return `<line x1="${130 - dx}" y1="${130 - dy}" x2="${130 + dx}" y2="${130 + dy}" stroke="#8a4b23" stroke-width="4" stroke-linecap="round" opacity="0.75"/>`;
+  }).join('');
+}
+
+function drawPizzaInner(opts = {}) {
   const p = state.pizza;
   let bits = '';
   const put = (set, region) => set.forEach(id => {
@@ -273,12 +304,12 @@ function drawPizza() {
   });
   put(p.whole, 'whole'); put(p.left, 'left'); put(p.right, 'right');
 
-  const divider = halvesUnlocked() && (p.left.size || p.right.size)
+  const divider = !opts.baked && halvesUnlocked() && (p.left.size || p.right.size)
     ? `<line x1="130" y1="34" x2="130" y2="226" stroke="#e8b45a" stroke-width="2" stroke-dasharray="6 6" opacity="0.7"/>` : '';
   const sauce = p.whole.has('sauce') ? `<circle cx="130" cy="130" r="102" fill="#d94f35"/>` : '';
+  const bakedTint = opts.baked ? `<circle cx="130" cy="130" r="122" fill="#a85f1e" opacity="0.16"/>` : '';
 
-  return `<svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="130" cy="130" r="122" fill="#e8b45a"/>
+  return `<circle cx="130" cy="130" r="122" fill="#e8b45a"/>
     <circle cx="130" cy="130" r="121" fill="none" stroke="#d09a3e" stroke-width="6" stroke-dasharray="2 9" opacity="0.6"/>
     ${sauce}
     <circle cx="130" cy="130" r="97" fill="#f7d872"/>
@@ -286,6 +317,28 @@ function drawPizza() {
     <circle cx="155" cy="150" r="24" fill="#fbe28f" opacity="0.6"/>
     ${bits}
     ${divider}
+    ${bakedTint}
+    ${cutLinesSvg(opts.cuts || 0)}`;
+}
+
+function drawPizza(opts) {
+  return `<svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">${drawPizzaInner(opts)}</svg>`;
+}
+
+function ovenSvg() {
+  const flames = [70, 120, 170, 220, 270].map((x, i) =>
+    `<path class="flame f${i}" d="M${x} 252 Q${x - 9} 236 ${x} 220 Q${x + 9} 236 ${x} 252 Z" fill="#ff9f3a"/>
+     <path class="flame f${(i + 2) % 5}" d="M${x} 250 Q${x - 4} 240 ${x} 232 Q${x + 4} 240 ${x} 250 Z" fill="#ffd447"/>`).join('');
+  return `<svg viewBox="0 0 340 316" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="14" width="320" height="290" rx="20" fill="#9c6644"/>
+    <rect x="10" y="14" width="320" height="52" rx="20" fill="#8a5a3b"/>
+    <circle cx="262" cy="40" r="9" fill="#3a2417"/><circle cx="292" cy="40" r="9" fill="#3a2417"/>
+    <circle cx="262" cy="40" r="3" fill="#e8b45a"/><circle cx="292" cy="40" r="3" fill="#e8b45a"/>
+    <rect x="30" y="78" width="280" height="184" rx="14" fill="#2b1a10"/>
+    <g transform="translate(98 90) scale(0.55)">${drawPizzaInner()}</g>
+    ${flames}
+    <rect x="30" y="78" width="280" height="184" rx="14" fill="none" stroke="#5c3a21" stroke-width="8"/>
+    <rect x="120" y="284" width="100" height="10" rx="5" fill="#5c3a21"/>
   </svg>`;
 }
 
@@ -305,7 +358,7 @@ function regionOf(id) {
 
 function buildBins() {
   const bin = (t) => {
-    const locked = t.unlock > state.money;
+    const locked = t.unlock > state.earned;
     const on = !!regionOf(t.id);
     return `<button class="bin ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-id="${t.id}">
       ${binSvg(t)}
@@ -319,7 +372,8 @@ function buildBins() {
 
 function tapBin(id) {
   const t = byId(id);
-  if (t.unlock > state.money) return;
+  if (t.unlock > state.earned) return;
+  startClock();
   const p = state.pizza;
   const cur = regionOf(id);
   const target = isBase(id) ? 'whole' : state.target; // sauce & cheese always cover the whole pizza
@@ -337,6 +391,21 @@ function setTarget(t) {
   state.target = t;
   $('targetChips').querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', c.dataset.target === t));
 }
+
+/* ============================== SPEECH ============================== */
+
+// pre-readers: riddles can be read aloud; the patience clock waits for the first build tap
+const canSpeak = typeof window.speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+
+function speak() {
+  if (!canSpeak || !state.customer) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(state.customer.text);
+  u.rate = 0.95;
+  window.speechSynthesis.speak(u);
+}
+
+function stopSpeaking() { if (canSpeak) window.speechSynthesis.cancel(); }
 
 /* ============================== CUSTOMER / PATIENCE ============================== */
 
@@ -356,9 +425,15 @@ function nextCustomer() {
   updatePatience();
 
   clearInterval(state.tickId);
+  state.tickId = null; // clock starts on the first build tap, so the riddle can be heard first
+  speak();
+}
+
+function startClock() {
+  if (state.tickId) return;
   state.tickId = setInterval(() => {
     state.patience -= 0.5 / state.patienceTotal;
-    if (state.patience <= 0) { clearInterval(state.tickId); customerLeaves(); return; }
+    if (state.patience <= 0) { clearInterval(state.tickId); state.tickId = null; customerLeaves(); return; }
     updatePatience();
   }, 500);
 }
@@ -371,6 +446,7 @@ function updatePatience() {
 }
 
 function customerLeaves() {
+  stopSpeaking();
   state.served++;
   state.dayServed++;
   updateHud();
@@ -381,11 +457,43 @@ function customerLeaves() {
 
 function servePizza() {
   clearInterval(state.tickId);
-  $('overlay-bake').classList.remove('hidden');
-  setTimeout(() => {
-    $('overlay-bake').classList.add('hidden');
-    scoreAndShow();
-  }, 1200);
+  state.tickId = null;
+  stopSpeaking();
+  state.slicing = false;
+  state.cuts = 0;
+  $('ovenLabel').textContent = 'Into the oven! 🔥';
+  $('ovenStage').innerHTML = ovenSvg();
+  $('ovenTrack').classList.remove('hidden');
+  $('ovenBar').style.width = '0%';
+  $('overlay-oven').classList.remove('hidden');
+  const ms = bakeMs();
+  let elapsed = 0;
+  clearInterval(state.bakeId);
+  state.bakeId = setInterval(() => {
+    elapsed += 100;
+    $('ovenBar').style.width = Math.min(100, (elapsed / ms) * 100) + '%';
+    if (elapsed >= ms) { clearInterval(state.bakeId); startSlicing(); }
+  }, 100);
+}
+
+function startSlicing() {
+  state.slicing = true;
+  $('ovenLabel').textContent = 'Ding! 🔔 Tap the pizza to slice it! 🔪';
+  $('ovenTrack').classList.add('hidden');
+  $('ovenStage').innerHTML = `<div class="slice-wrap">${drawPizza({ baked: true, cuts: 0 })}</div>`;
+}
+
+function tapSlice() {
+  if (!state.slicing) return;
+  state.cuts++;
+  $('ovenStage').innerHTML = `<div class="slice-wrap">${drawPizza({ baked: true, cuts: state.cuts })}</div>`;
+  if (state.cuts >= CUTS_NEEDED) {
+    state.slicing = false;
+    $('ovenLabel').textContent = '8 perfect slices! 🍕';
+    setTimeout(() => { $('overlay-oven').classList.add('hidden'); scoreAndShow(); }, 800);
+  } else {
+    $('ovenLabel').textContent = ['', 'Keep slicing! 🔪', 'Halfway there! 🔪', 'One more cut! 🔪'][state.cuts];
+  }
 }
 
 function scoreAndShow() {
@@ -397,9 +505,10 @@ function scoreAndShow() {
   state.dayServed++;
 
   if (correct) {
-    const tip = Math.ceil(state.patience * (3 + count));
+    const tip = Math.ceil(state.patience * (3 + count)) + decoCount();
     const total = price + tip;
     state.money += total;
+    state.earned += total;
     state.dayEarned += total;
     state.dayHappy++;
     showResult(faceFor(Math.max(state.patience, 0.4)), `${c.name} loves it!`,
@@ -408,6 +517,7 @@ function scoreAndShow() {
   } else {
     const total = Math.floor(price / 2);
     state.money += total;
+    state.earned += total;
     state.dayEarned += total;
     showResult('😕', `${c.name} frowns… that's not the order!`,
       `The order was: ${c.explain}`,
@@ -432,17 +542,57 @@ function updateHud() {
 }
 
 // unlock check runs when leaving the result screen so the reveal doesn't stack overlays
-let lastUnlockMoney = 0;
+let lastUnlockEarned = 0;
 function checkUnlocks() {
-  const fresh = TOPPINGS.filter(t => t.unlock > lastUnlockMoney && t.unlock <= state.money);
-  const halfFresh = lastUnlockMoney < HALF_UNLOCK && state.money >= HALF_UNLOCK;
-  lastUnlockMoney = state.money;
+  const fresh = TOPPINGS.filter(t => t.unlock > lastUnlockEarned && t.unlock <= state.earned);
+  const halfFresh = lastUnlockEarned < HALF_UNLOCK && state.earned >= HALF_UNLOCK;
+  lastUnlockEarned = state.earned;
   if (!fresh.length && !halfFresh) return false;
   $('unlockList').innerHTML = fresh.map(t =>
     `<div class="bin">${binSvg(t)}<span class="item-name">${t.name}</span></div>`).join('') +
     (halfFresh ? `<div class="bin"><span style="font-size:2rem">◐</span><span class="item-name">Half &amp; Half orders!</span></div>` : '');
   $('overlay-unlock').classList.remove('hidden');
   return true;
+}
+
+/* ============================== STORE ============================== */
+
+function canBuy(u) {
+  return !state.owned.has(u.id) && state.money >= u.cost && (!u.needs || state.owned.has(u.needs));
+}
+
+function buyUpgrade(id) {
+  const u = UPGRADES.find(x => x.id === id);
+  if (!canBuy(u)) return;
+  state.money -= u.cost;
+  state.owned.add(id);
+  updateHud();
+  buildStore();
+  drawDecor();
+}
+
+function buildStore() {
+  $('storeMoney').textContent = `💰 $${state.money} to spend`;
+  $('storeList').innerHTML = UPGRADES.map(u => {
+    const owned = state.owned.has(u.id);
+    const needsMissing = u.needs && !state.owned.has(u.needs);
+    const cls = owned ? 'owned' : (needsMissing || state.money < u.cost) ? 'locked' : '';
+    const tag = owned ? '✓ yours!'
+      : needsMissing ? `🔒 needs ${UPGRADES.find(x => x.id === u.needs).name}`
+      : `$${u.cost}`;
+    return `<button class="store-item ${cls}" data-id="${u.id}">
+      <span class="store-emoji">${u.emoji}</span>
+      <span class="item-name">${u.name}</span>
+      <span class="store-desc">${u.desc}</span>
+      <span class="store-price">${tag}</span></button>`;
+  }).join('');
+  document.querySelectorAll('.store-item[data-id]').forEach(b => { b.onclick = () => buyUpgrade(b.dataset.id); });
+}
+
+function drawDecor() {
+  const decos = UPGRADES.filter(u => u.deco && state.owned.has(u.id));
+  $('decorShelf').innerHTML = decos.map(u => `<span title="${u.name}">${u.emoji}</span>`).join('');
+  $('decorShelf').classList.toggle('hidden', !decos.length);
 }
 
 /* ============================== BOOT ============================== */
@@ -478,6 +628,16 @@ $('btnNextCust').onclick = () => {
   if (!checkUnlocks()) proceed();
 };
 $('btnUnlockOk').onclick = () => { $('overlay-unlock').classList.add('hidden'); proceed(); };
+$('ovenStage').onclick = tapSlice;
+$('btnStoreOpen').onclick = () => {
+  $('overlay-day').classList.add('hidden');
+  buildStore();
+  $('overlay-store').classList.remove('hidden');
+};
+$('btnStoreDone').onclick = () => {
+  $('overlay-store').classList.add('hidden');
+  $('overlay-day').classList.remove('hidden');
+};
 $('btnNextDay').onclick = () => {
   state.day++;
   state.dayServed = 0;
@@ -486,6 +646,8 @@ $('btnNextDay').onclick = () => {
   $('overlay-day').classList.add('hidden');
   nextCustomer();
 };
-$('targetChips').querySelectorAll('.chip').forEach(c => { c.onclick = () => setTarget(c.dataset.target); });
+$('targetChips').querySelectorAll('.chip').forEach(c => { c.onclick = () => { startClock(); setTarget(c.dataset.target); }; });
+$('btnSpeak').onclick = speak; // re-listen any time; never starts the clock
+if (!canSpeak) $('btnSpeak').classList.add('hidden');
 
 updateHud();

@@ -23,7 +23,7 @@
   <div class="title-card">
     <div class="title-pizza">🍕</div>
     <h2>Welcome to your Pizzeria!</h2>
-    <p>Customers order in riddles. Build the right pizza before they lose their patience — great service means great tips!</p>
+    <p>Customers order in riddles. Build the right pizza, bake it, slice it up — great service means great tips! Spend your money on ovens and decorations at the store.</p>
     <button id="btnOpen" class="big-btn">Open the Shop! 🔔</button>
   </div>
 </div>
@@ -35,12 +35,17 @@
       <div id="custFace" class="cust-face">🧑</div>
       <div id="custName" class="cust-name"></div>
     </div>
-    <div class="bubble" id="riddle"></div>
+    <div class="bubble">
+      <span id="riddle"></span>
+      <button id="btnSpeak" class="speak-btn" aria-label="Read the order aloud">🔊</button>
+    </div>
     <div class="patience">
       <div class="patience-label">Patience</div>
       <div class="patience-track"><div id="patienceBar" class="patience-bar"></div></div>
     </div>
   </div>
+
+  <div id="decorShelf" class="decor-shelf hidden"></div>
 
   <div class="work-area">
     <div id="targetChips" class="target-chips hidden">
@@ -51,7 +56,7 @@
     <div id="pizza"></div>
     <div class="actions">
       <button id="btnClearPizza" class="small-btn">🗑 Scrape it off</button>
-      <button id="btnServePizza" class="serve-btn">Serve it! 🛎</button>
+      <button id="btnServePizza" class="serve-btn">Bake it! 🔥</button>
     </div>
   </div>
 
@@ -63,9 +68,13 @@
   </div>
 </div>
 
-<!-- baking -->
-<div id="overlay-bake" class="overlay hidden">
-  <div class="bake-card">🔥 Baking… 🍕</div>
+<!-- oven & slicing -->
+<div id="overlay-oven" class="overlay hidden">
+  <div class="oven-card">
+    <div id="ovenLabel" class="oven-label">Into the oven! 🔥</div>
+    <div id="ovenStage" class="oven-stage"></div>
+    <div id="ovenTrack" class="oven-track"><div id="ovenBar" class="oven-bar"></div></div>
+  </div>
 </div>
 
 <!-- result -->
@@ -86,7 +95,18 @@
     <h2 id="dayTitle"></h2>
     <p id="daySummary"></p>
     <p id="dayMoney" class="result-money"></p>
+    <button id="btnStoreOpen" class="big-btn store-btn">Visit the Store 🛍</button>
     <button id="btnNextDay" class="big-btn"></button>
+  </div>
+</div>
+
+<!-- store -->
+<div id="overlay-store" class="overlay hidden">
+  <div class="result-card">
+    <h2>🛍 Pizzeria Store</h2>
+    <p id="storeMoney" class="result-money"></p>
+    <div id="storeList" class="store-list"></div>
+    <button id="btnStoreDone" class="big-btn">Back to the shop! 🍕</button>
   </div>
 </div>
 
