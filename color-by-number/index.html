@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Color by Number</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- pick a scene -->
+<div id="screen-pick" class="screen active">
+  <h1>🎨 Color by Number</h1>
+  <p class="sub">Pick a season, tap a color, then tap the shapes with that number!</p>
+  <div id="sceneList" class="scene-list"></div>
+</div>
+
+<!-- coloring -->
+<div id="screen-color" class="screen">
+  <header class="top-bar">
+    <button id="btnBack" class="small-btn">◀ Pictures</button>
+    <span id="sceneName" class="scene-name"></span>
+    <span id="progress" class="progress"></span>
+  </header>
+
+  <div class="work">
+    <div id="canvas" class="canvas"></div>
+    <div id="palette" class="palette"></div>
+  </div>
+</div>
+
+<!-- finished -->
+<div id="overlay-done" class="overlay hidden">
+  <div class="done-card">
+    <div class="done-face">🎉</div>
+    <h2 id="doneTitle"></h2>
+    <div id="donePic" class="done-pic"></div>
+    <div class="done-btns">
+      <button id="btnSave" class="big-btn">📸 Save picture</button>
+      <button id="btnAgain" class="small-btn">🔁 Color it again</button>
+      <button id="btnPickNew" class="small-btn">🖼 Another picture</button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

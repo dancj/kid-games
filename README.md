@@ -13,3 +13,4 @@ A collection of kid-friendly browser games. Plain HTML/CSS/JS, no build step —
 | [Fashion for Life](fashion-for-life/) 💅 | [▶ play](https://dancj.github.io/kid-games/fashion-for-life/) | Timed salon styling competition — nails, makeup, hair, outfits, judged in rounds |
 | [The Ice Cream Shop](ice-cream-shop/) 🍨 | [▶ play](https://dancj.github.io/kid-games/ice-cream-shop/) | Build-your-own ice cream — cones, scoops, mix-ins, toppings. Everything free! |
 | [Pizzeria](pizzeria/) 🍕 | [▶ play](https://dancj.github.io/kid-games/pizzeria/) | Riddle orders, patience clock, tips — build pizzas and unlock toppings |
+| [Color by Number](color-by-number/) 🎨 | [▶ play](https://dancj.github.io/kid-games/color-by-number/) | Four season pictures, 24 numbered colors — tap to fill, save the finished art |
