@@ -14,3 +14,4 @@ A collection of kid-friendly browser games. Plain HTML/CSS/JS, no build step —
 | [The Ice Cream Shop](ice-cream-shop/) 🍨 | [▶ play](https://dancj.github.io/kid-games/ice-cream-shop/) | Build-your-own ice cream — cones, scoops, mix-ins, toppings. Everything free! |
 | [Pizzeria](pizzeria/) 🍕 | [▶ play](https://dancj.github.io/kid-games/pizzeria/) | Riddle orders, patience clock, tips — build pizzas and unlock toppings |
 | [Color by Number](color-by-number/) 🎨 | [▶ play](https://dancj.github.io/kid-games/color-by-number/) | Four season pictures, 24 numbered colors — tap to fill, save the finished art |
+| [Snake Clash](snake-clash/) 🐍 | [▶ play](https://dancj.github.io/kid-games/snake-clash/) | Baby snake vs rival snakes — eat balls and anything smaller than you |

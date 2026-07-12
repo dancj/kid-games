@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Snake Clash</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top-bar">
+  <h1>🐍 Snake Clash</h1>
+  <div class="hud">
+    <span id="score" class="pill">🐍 3</span>
+    <span id="rivalSize" class="pill rival">Biggest rival: 3</span>
+    <span id="best" class="pill">🏆 0</span>
+  </div>
+</header>
+
+<!-- title -->
+<div id="screen-title" class="screen active">
+  <div class="title-card">
+    <div class="title-snake">🐍</div>
+    <h2>Grow the longest snake!</h2>
+    <p>You start as a baby snake. Slither around and gobble the little balls to get longer.
+      Other snakes are hungry too — bump into one <b>smaller</b> than you and you eat it!
+      Bump into a <b>bigger</b> one, or a wall, and you're lunch.</p>
+    <p class="tip">You can slither right through your own tail. 😌</p>
+    <button id="btnPlay" class="big-btn">Slither! 🟡</button>
+  </div>
+</div>
+
+<!-- play -->
+<div id="screen-play" class="screen">
+  <div id="board" class="board-wrap"></div>
+  <p class="hint">Swipe up, down, left or right to turn</p>
+</div>
+
+<!-- game over -->
+<div id="overlay-over" class="overlay hidden">
+  <div class="over-card">
+    <div class="over-face">😵</div>
+    <h2 id="overTitle"></h2>
+    <p id="overScore"></p>
+    <button id="btnAgain" class="big-btn">Play again 🐍</button>
+    <button id="btnQuit" class="small-btn">Back to start</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
