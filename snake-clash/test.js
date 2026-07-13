@@ -27,7 +27,7 @@ global.document = {
 };
 
 const src = fs.readFileSync(path.join(__dirname, 'game.js'), 'utf8');
-eval(src + '\nmodule.exports = { COLS, ROWS, BABY, BALLS, state, startGame, tick, turn, drawBoard, len, hatch };');
+eval(src + '\nmodule.exports = { COLS, ROWS, BABY, BALLS, SLOW, FAST, state, startGame, tick, turn, drawBoard, len, hatch, speedOf };');
 const g = module.exports;
 
 const ok = (svg, label) => assert(svg.includes('<svg') && !svg.includes('undefined') && !svg.includes('NaN'), `bad svg: ${label}`);
@@ -99,12 +99,39 @@ assert(s.over, 'game over');
 assert(g.tick(s) === 'dead', 'a dead snake stays dead');
 ok(g.drawBoard(s), 'board after being eaten');
 
-// walls end the run
+// same size: nobody gets hurt
+g.startGame(41);
+clear(s);
+s.player.cells = [{ x: 5, y: 5 }, { x: 4, y: 5 }, { x: 3, y: 5 }];
+s.player.dir = s.player.nextDir = 'right';
+const twin = s.rivals[0];
+twin.alive = true;
+twin.cells = [{ x: 6, y: 5 }, { x: 6, y: 6 }, { x: 6, y: 7 }];   // same length as you
+twin.dir = twin.nextDir = 'up';
+assert(g.tick(s) !== 'dead', 'a snake your own size is harmless');
+assert(!s.over && g.len(s.player) === 3, 'you slide past a same-size snake unchanged');
+
+// the edges wrap instead of killing
 g.startGame(5);
 clear(s);
 s.player.cells = [{ x: g.COLS - 1, y: 5 }, { x: g.COLS - 2, y: 5 }, { x: g.COLS - 3, y: 5 }];
 s.player.dir = s.player.nextDir = 'right';
-assert(g.tick(s) === 'dead', 'the wall is the wall');
+assert(g.tick(s) !== 'dead', 'the right edge is not a wall');
+assert(s.player.cells[0].x === 0 && s.player.cells[0].y === 5, 'you come back on the left');
+
+clear(s);
+s.player.cells = [{ x: 5, y: 0 }, { x: 5, y: 1 }, { x: 5, y: 2 }];
+s.player.dir = s.player.nextDir = 'up';
+g.tick(s);
+assert(s.player.cells[0].y === g.ROWS - 1, 'the top wraps to the bottom');
+
+// speed: babies crawl, big snakes race, and it never gets silly-fast
+g.startGame(17);
+assert(g.speedOf(s) === g.SLOW, 'a baby snake moves at the slowest speed');
+s.player.cells = Array.from({ length: 20 }, (_, i) => ({ x: 20 - i, y: 2 }));
+assert(g.speedOf(s) < g.SLOW, 'growing speeds you up');
+s.player.cells = Array.from({ length: 200 }, (_, i) => ({ x: i % g.COLS, y: 2 }));
+assert(g.speedOf(s) === g.FAST, 'speed is capped');
 
 // rivals keep playing by themselves without falling apart
 g.startGame(99);

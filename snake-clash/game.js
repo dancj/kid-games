@@ -4,7 +4,9 @@
 const $ = (id) => document.getElementById(id);
 
 const COLS = 24, ROWS = 18;
-const TICK = 220;          // ms per move — slow enough for little hands
+const SLOW = 400;          // ms per move for a baby snake — nice and gentle
+const FAST = 130;          // the quickest it ever gets
+const RAMP = 9;            // ms shaved off per segment you grow
 const BALLS = 10;          // balls on the field at once
 const BABY = 3;            // every snake starts this long
 const RIVALS = 3;
@@ -15,6 +17,7 @@ const DIRS = {
   left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
 };
 const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+const ANGLE = { right: 0, down: 90, left: 180, up: 270 };
 const DIR_NAMES = Object.keys(DIRS);
 
 const RIVAL_SKINS = [
@@ -36,9 +39,15 @@ function rnd(s) {
 const pick = (s, arr) => arr[Math.floor(rnd(s) * arr.length)];
 
 const same = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y;
-const onBoard = (c) => c.x >= 0 && c.y >= 0 && c.x < COLS && c.y < ROWS;
+/* The garden has no walls — slither off one edge and you come back on the other. */
+const wrap = (c) => ({ x: (c.x + COLS) % COLS, y: (c.y + ROWS) % ROWS });
+const ahead = (cell, dir) => wrap({ x: cell.x + DIRS[dir].x, y: cell.y + DIRS[dir].y });
 const snakes = (s) => [s.player, ...s.rivals].filter((sn) => sn && sn.alive);
 const hits = (snake, c) => snake.cells.some((seg) => same(seg, c));
+const len = (sn) => sn.cells.length;
+
+/* Bigger snake = faster snake. */
+const speedOf = (s) => Math.max(FAST, SLOW - (len(s.player) - BABY) * RAMP);
 
 function freeCells(s) {
   const out = [];
@@ -58,11 +67,11 @@ function newBall(s) {
 
 /* A baby snake, dropped somewhere with room to slither. */
 function hatch(s, snake) {
-  const free = freeCells(s).filter((c) => c.x > 2 && c.x < COLS - 3 && c.y > 1 && c.y < ROWS - 2);
+  const free = freeCells(s);
   const head = free.length ? pick(s, free) : { x: 2, y: 2 };
   const dir = pick(s, DIR_NAMES);
   const back = DIRS[OPPOSITE[dir]];
-  snake.cells = Array.from({ length: BABY }, (_, i) => ({ x: head.x + back.x * i, y: head.y + back.y * i }));
+  snake.cells = Array.from({ length: BABY }, (_, i) => wrap({ x: head.x + back.x * i, y: head.y + back.y * i }));
   snake.dir = snake.nextDir = dir;
   snake.alive = true;
   return snake;
@@ -73,16 +82,14 @@ function startGame(seed) {
   state.over = false;
   state.balls = [];
   state.player = { id: 'you', cells: [], dir: 'right', nextDir: 'right', alive: true, skin: { body: '#5cb85c', head: '#2f7d4f' } };
-  state.rivals = [];
   state.player.cells = [{ x: 5, y: 9 }, { x: 4, y: 9 }, { x: 3, y: 9 }];
+  state.rivals = [];
   for (let i = 0; i < RIVALS; i++) {
     const r = { id: `rival${i}`, cells: [], dir: 'left', nextDir: 'left', alive: true, skin: RIVAL_SKINS[i % RIVAL_SKINS.length] };
     state.rivals.push(hatch(state, r));
   }
   while (state.balls.length < BALLS) newBall(state);
 }
-
-const len = (sn) => sn.cells.length;
 
 /* A turn sticks unless it doubles back into your own neck. */
 function turn(sn, dir) {
@@ -91,25 +98,27 @@ function turn(sn, dir) {
   return true;
 }
 
-/* Rivals chase the nearest ball and stay clear of snakes their own size or bigger.
+/* Shortest gap between two cells, remembering the board wraps. */
+function gap(a, b) {
+  const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
+  return Math.min(dx, COLS - dx) + Math.min(dy, ROWS - dy);
+}
+
+/* Rivals chase the nearest ball and stay clear of snakes BIGGER than they are.
    Snakes never die on their own body — you can slither straight through yourself. */
 function rivalDir(s, sn) {
   const head = sn.cells[0];
-  const scary = snakes(s).filter((o) => o !== sn && len(o) >= len(sn));
-  const target = s.balls
-    .map((b) => ({ b, d: Math.abs(b.x - head.x) + Math.abs(b.y - head.y) }))
-    .sort((a, b) => a.d - b.d)[0];
+  const scary = snakes(s).filter((o) => o !== sn && len(o) > len(sn));
+  const target = s.balls.map((b) => ({ b, d: gap(b, head) })).sort((a, b) => a.d - b.d)[0];
 
   const options = DIR_NAMES
     .filter((d) => d !== OPPOSITE[sn.dir])
-    .map((d) => ({ d, c: { x: head.x + DIRS[d].x, y: head.y + DIRS[d].y } }))
-    .filter(({ c }) => onBoard(c) && !scary.some((o) => hits(o, c)));
+    .map((d) => ({ d, c: ahead(head, d) }))
+    .filter(({ c }) => !scary.some((o) => hits(o, c)));
 
   if (!options.length) return sn.dir;
   if (!target) return pick(s, options).d;
-  options.sort((a, b) =>
-    (Math.abs(a.c.x - target.b.x) + Math.abs(a.c.y - target.b.y)) -
-    (Math.abs(b.c.x - target.b.x) + Math.abs(b.c.y - target.b.y)));
+  options.sort((a, b) => gap(a.c, target.b) - gap(b.c, target.b));
   return options[0].d;
 }
 
@@ -119,40 +128,35 @@ const grow = (sn, n) => {
 };
 
 /* One tick: everybody moves, then we work out who bumped into whom.
-   Bumping a snake SHORTER than you: you swallow it and grow. Same size or
-   bigger, or a wall: you're done. Returns 'ok' | 'eat' | 'dead' (for the player). */
+   Bumping a snake SHORTER than you: you swallow it and grow. Bumping a BIGGER
+   one: you're done. Same size: you slide past each other, no harm done.
+   Returns 'ok' | 'eat' | 'dead' (for the player). */
 function tick(s) {
   if (s.over) return 'dead';
   const movers = snakes(s);
   const before = movers.map((sn) => ({ sn, cells: sn.cells, size: len(sn) }));
 
-  // 1. where does everyone want to go?
   for (const sn of movers) {
     if (sn !== s.player) sn.nextDir = rivalDir(s, sn);
     sn.dir = sn.nextDir;
-    const d = DIRS[sn.dir];
-    sn.head = { x: sn.cells[0].x + d.x, y: sn.cells[0].y + d.y };
+    sn.head = ahead(sn.cells[0], sn.dir);
   }
 
   const doomed = new Set();
   const gains = new Map();
 
-  // 2. walls
-  for (const sn of movers) if (!onBoard(sn.head)) doomed.add(sn);
-
-  // 3. snake vs snake — sizes are compared as they were at the start of the tick
+  // snake vs snake — sizes are compared as they stood at the start of the tick
   for (const { sn, size } of before) {
-    if (doomed.has(sn)) continue;
     for (const other of before) {
       if (other.sn === sn) continue;                       // your own body is safe to cross
       const bumped = other.cells.some((seg) => same(seg, sn.head)) || same(other.sn.head, sn.head);
-      if (!bumped) continue;
+      if (!bumped || size === other.size) continue;        // same size: no harm either way
       if (size > other.size) gains.set(sn, Math.max(2, Math.floor(other.size / 2)));
       else doomed.add(sn);
     }
   }
 
-  // 4. balls
+  // balls
   let ate = false;
   for (const sn of movers) {
     if (doomed.has(sn)) continue;
@@ -163,7 +167,7 @@ function tick(s) {
     if (sn === s.player) ate = true;
   }
 
-  // 5. everybody slithers forward
+  // everybody slithers forward
   for (const sn of movers) {
     if (doomed.has(sn)) continue;
     sn.cells.unshift(sn.head);
@@ -172,7 +176,7 @@ function tick(s) {
     if (gain && sn === s.player) ate = true;
   }
 
-  // 6. clean up the fallen: rivals hatch again as babies, the player's run ends
+  // the fallen: rivals hatch again as babies, the player's run ends
   for (const sn of doomed) {
     sn.alive = false;
     if (sn === s.player) s.over = true;
@@ -182,29 +186,13 @@ function tick(s) {
   for (const sn of movers) delete sn.head;
 
   if (s.over) return 'dead';
-  return ate || gains.has(s.player) ? 'eat' : 'ok';
+  return ate ? 'eat' : 'ok';
 }
 
 /* ============================== DRAWING ============================== */
-function drawSnake(sn) {
-  const body = sn.cells.slice(1).map((seg, i) => {
-    const fade = i % 2 ? .88 : 1;
-    return `<rect x="${seg.x + .06}" y="${seg.y + .06}" width=".88" height=".88" rx=".3" fill="${sn.skin.body}" opacity="${fade}"/>`;
-  }).join('');
-  const h = sn.cells[0];
-  const d = DIRS[sn.dir];
-  const across = { x: -d.y, y: d.x };
-  const eye = (side) => {
-    const ex = h.x + .5 + across.x * side * .22 + d.x * .16;
-    const ey = h.y + .5 + across.y * side * .22 + d.y * .16;
-    return `<circle cx="${ex}" cy="${ey}" r=".14" fill="#fff"/>
-      <circle cx="${ex + d.x * .05}" cy="${ey + d.y * .05}" r=".07" fill="#3a3a48"/>`;
-  };
-  return `${body}
-    <rect x="${h.x + .02}" y="${h.y + .02}" width=".96" height=".96" rx=".34" fill="${sn.skin.head}"/>
-    ${eye(1)}${eye(-1)}`;
-}
-
+/* The board is built once and then nudged: each segment keeps its own element
+   and CSS eases it to its new square, so the snakes glide instead of snapping.
+   drawBoard() is the from-scratch version — used for the first paint. */
 function drawBoard(s) {
   let grid = '';
   for (let y = 0; y < ROWS; y++) {
@@ -212,16 +200,79 @@ function drawBoard(s) {
       if ((x + y) % 2 === 0) grid += `<rect x="${x}" y="${y}" width="1" height="1" fill="#c9ecab"/>`;
     }
   }
-  const balls = s.balls.map((b) => `
-    <circle cx="${b.x + .5}" cy="${b.y + .5}" r=".3" fill="${b.color}"/>
-    <circle cx="${b.x + .38}" cy="${b.y + .38}" r=".09" fill="#fff" opacity=".65"/>`).join('');
-
-  /* smallest first, so the big snakes sit on top */
-  const drawn = snakes(s).sort((a, b) => len(a) - len(b)).map(drawSnake).join('');
-
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${COLS} ${ROWS}" class="board">
     <rect x="0" y="0" width="${COLS}" height="${ROWS}" fill="#b8e394"/>
-    ${grid}${balls}${drawn}</svg>`;
+    ${grid}<g id="ballLayer"></g><g id="snakeLayer"></g></svg>`;
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs) => {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+};
+
+/* Move a node, but never let it slide across the whole board: a snake that
+   wrapped round the edge (or a rival that just hatched) must teleport. */
+function place(node, x, y, angle) {
+  const prev = node._at;
+  const jump = !prev || Math.abs(prev.x - x) > 1.01 || Math.abs(prev.y - y) > 1.01;
+  if (jump) node.style.transition = 'none';
+  node.setAttribute('transform', `translate(${x} ${y})${angle === undefined ? '' : ` rotate(${angle} .5 .5)`}`);
+  if (jump) {
+    void node.getBoundingClientRect();     // let the jump land before easing resumes
+    node.style.transition = '';
+  }
+  node._at = { x, y };
+}
+
+const skins = new Map();   // snake id -> { g, segs, eyes }
+
+function renderSnakes(s) {
+  const layer = $('snakeLayer');
+  const alive = snakes(s).sort((a, b) => len(a) - len(b));   // big snakes ride on top
+
+  for (const [id, kit] of skins) {
+    if (!alive.some((sn) => sn.id === id)) { kit.g.remove(); skins.delete(id); }
+  }
+
+  for (const sn of alive) {
+    let kit = skins.get(sn.id);
+    if (!kit) {
+      const g = el('g', {});
+      const eyes = el('g', { class: 'eyes' });
+      for (const side of [-1, 1]) {
+        eyes.appendChild(el('circle', { cx: .66, cy: .5 + side * .22, r: .14, fill: '#fff' }));
+        eyes.appendChild(el('circle', { cx: .72, cy: .5 + side * .22, r: .07, fill: '#3a3a48' }));
+      }
+      kit = { g, segs: [], eyes };
+      g.appendChild(eyes);
+      layer.appendChild(g);
+      skins.set(sn.id, kit);
+    }
+    layer.appendChild(kit.g);   // re-stack smallest-first
+
+    while (kit.segs.length < len(sn)) {
+      const r = el('rect', { width: .9, height: .9, rx: .3, class: 'seg' });
+      kit.segs.push(r);
+      kit.g.insertBefore(r, kit.eyes);
+    }
+    while (kit.segs.length > len(sn)) kit.segs.pop().remove();
+
+    sn.cells.forEach((c, i) => {
+      const r = kit.segs[i];
+      r.setAttribute('fill', i === 0 ? sn.skin.head : sn.skin.body);
+      r.setAttribute('opacity', i && i % 2 ? .9 : 1);
+      place(r, c.x + .05, c.y + .05);
+    });
+    place(kit.eyes, sn.cells[0].x, sn.cells[0].y, ANGLE[sn.dir]);
+  }
+}
+
+function renderBalls(s) {
+  $('ballLayer').innerHTML = s.balls.map((b) => `
+    <circle cx="${b.x + .5}" cy="${b.y + .5}" r=".3" fill="${b.color}" class="ball"/>
+    <circle cx="${b.x + .38}" cy="${b.y + .38}" r=".09" fill="#fff" opacity=".65"/>`).join('');
 }
 
 /* ============================== LOOP + UI ============================== */
@@ -231,11 +282,16 @@ function loop() {
   const res = tick(state);
   render();
   if (res === 'dead') return gameOver();
-  timer = setTimeout(loop, TICK);
+  timer = setTimeout(loop, speedOf(state));
 }
 
 function render() {
-  $('board').innerHTML = drawBoard(state);
+  const board = $('board');
+  if (!board.querySelector('svg')) { board.innerHTML = drawBoard(state); skins.clear(); }
+  board.querySelector('svg').style.setProperty('--tick', `${speedOf(state)}ms`);
+  renderBalls(state);
+  renderSnakes(state);
+
   $('score').textContent = `🐍 ${len(state.player)}`;
   $('best').textContent = `🏆 ${best()}`;
   const biggest = state.rivals.filter((r) => r.alive).reduce((m, r) => Math.max(m, len(r)), 0);
@@ -258,10 +314,12 @@ function gameOver() {
 function play() {
   clearTimeout(timer);
   startGame(Date.now() % 233280);
+  $('board').innerHTML = '';
+  skins.clear();
   $('overlay-over').classList.add('hidden');
   show('screen-play');
   render();
-  timer = setTimeout(loop, 800);   // a beat to get your finger ready
+  timer = setTimeout(loop, 900);   // a beat to get your finger ready
 }
 
 function show(id) {
@@ -299,7 +357,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('visibilitychange', () => {
     if (!state.player || state.over) return;
     clearTimeout(timer);
-    if (!document.hidden) timer = setTimeout(loop, TICK);
+    if (!document.hidden) timer = setTimeout(loop, speedOf(state));
   });
   window.addEventListener('beforeunload', (e) => {
     if (state.player && !state.over && len(state.player) > BABY) { e.preventDefault(); e.returnValue = ''; }

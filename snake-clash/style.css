@@ -67,10 +67,12 @@ button { font-family: inherit; color: inherit; border: none; cursor: pointer; }
   max-width: min(96vw, 150dvh);   /* board is 20:15, keep it whole on any screen */
   max-height: 100%;
   border-radius: 18px;
-  border: 5px solid #7fb069;
+  border: 5px dashed #7fb069;     /* dashed: the edges are openings, you wrap through them */
   box-shadow: 0 12px 30px rgba(31, 77, 51, .3);
   touch-action: none;             /* swipes steer the snake, they don't scroll */
 }
+/* each segment glides to its next square in exactly one tick */
+.seg, .eyes { transition: transform var(--tick, 300ms) linear; }
 .hint { color: #5d7d6b; font-weight: 600; padding: 8px 0 10px; }
 
 /* game over */
